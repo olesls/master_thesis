@@ -26,6 +26,7 @@ dropout_pkeep = 1.0     # no dropout
 # Load training data
 # TODO
 
+
 ##
 ## The model
 ##
@@ -108,4 +109,12 @@ config.gpu_options.allow_growth = True      # be nice and don't use more memory 
 sess = tf.Session(config=config)
 sess.run(init)
 
+step = 0
+for data_batch_stuff in all_the_data:   # TODO: load data and pass actual data
+    feed_dict = {X: xinput, Y: targetvalues, lr: learning_rate, pkeep: dropout_pkeep, batchsize: BATCHSIZE}
+    _, y, smm = sess.run([train_step, Y, summaries], feed_dict=feed_dict)
 
+    # save training data for Tensorboard
+    summary_writer.add_summary(ssm, step)
+
+    step += BATCHSIZE * SEQLEN
