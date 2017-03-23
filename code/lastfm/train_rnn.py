@@ -1,4 +1,4 @@
-# Code to train a intra/interRNN for prediction on the lastfm dataset
+# Code to train a plain RNN for prediction on the lastfm dataset
 
 import tensorflow as tf
 from tensorflow.contrib import layers
@@ -7,14 +7,15 @@ import os
 import time
 import math
 import numpy as np
+from lastfm_utils import PlainRNNDataHandler
 
-gpu = ['/gpu:0', '/gpu:1']
+dataset_path = os.path.expanduser('~') + '/datasets/lastfm-dataset-1K/lastfm_as_list_for_plain_rnn.pickle'
 
 # This might not work, might have to set the seed inside the training loop or something
 # TODO: Check if this works, google it if it does not work.
 tf.set_random_seed(0)
 
-N_ITEMS      = 10000    # number of items (size of 1-hot vector) (number of artists or songs in lastfm case)
+N_ITEMS      = -1       # number of items (size of 1-hot vector) (number of artists or songs in lastfm case)
 BATCHSIZE    = 100      #
 INTERNALSIZE = 512      # size of internal vectors/states in the rnn
 N_LAYERS     = 1        # number of layers in the rnn
@@ -24,12 +25,15 @@ learning_rate = 0.001   # fixed learning rate
 dropout_pkeep = 1.0     # no dropout
 
 # Load training data
-# TODO
-
+datahandler = PlainRNNDataHandler(dataset_path)
+N_ITEMS = datahandler.get_num_items()
+SEQLEN = #TODO
 
 ##
 ## The model
 ##
+gpu = ['/gpu:0', '/gpu:1']
+
 with tf.device(gpu[1]):
     lr = tf.placeholder(tf.float32, name='lr')              # learning rate
     pkeep = tf.placeholder(tf.float32, name='pkeep')        # dropout parameter
@@ -101,6 +105,8 @@ if not os.path.exists("checkpoints"):
     os.mkdir("checkpoints")
 saver = tf.train.Saver(max_to_keep=1)
 
+
+
 # Initialization
 # istate = np.zeros([BATCH_SIZE, INTERNALSIZE*N_LAYERS])    # initial zero input state
 init = tf.global_variables_initializer()
@@ -110,7 +116,10 @@ sess = tf.Session(config=config)
 sess.run(init)
 
 step = 0
-for data_batch_stuff in all_the_data:   # TODO: load data and pass actual data
+num_batches = datahandler.get_num_batches()
+for _batch_number in range(num_batches):
+    x, y = datahandler.get_next_batch()
+    # TODO
     feed_dict = {X: xinput, Y: targetvalues, lr: learning_rate, pkeep: dropout_pkeep, batchsize: BATCHSIZE}
     _, y, smm = sess.run([train_step, Y, summaries], feed_dict=feed_dict)
 

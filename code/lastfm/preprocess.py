@@ -13,11 +13,12 @@ DATASET_FILE = DATASET_DIR + '/userid-timestamp-artid-artname-traid-traname.tsv'
 DATASET_W_CONVERTED_TIMESTAMPS = DATASET_DIR + '/lastfm_converted_timestamps.pickle'
 DATASET_USER_ARTIST_MAPPED = DATASET_DIR + '/lastfm_user_artist_mapped.pickle'
 DATASET_USER_SESSIONS = DATASET_DIR + '/lastfm_user_sessions.pickle'
+DATASET_PLAIN_RNN = DATASET_DIR + '/lastfm_as_list_for_plain_rnn.pickle'
 
 # The maximum amount of time between two consequtive events before they are
 # considered belonging to different sessions. Remember to adjust for time 
 # to listen to a song. 30 minutes should be reasonable.
-SESSION_TIMEDELTA = 1800 # seconds. 60*30=1800 (30 minutes)
+SESSION_TIMEDELTA = 600 # seconds. 60*10=600 (10 minutes)
 
 def file_exists(filename):
     return os.path.isfile(filename)
@@ -66,6 +67,12 @@ def map_user_and_artist_id_to_labels():
     # Save to pickle file
     save_pickle(dataset_list, DATASET_USER_ARTIST_MAPPED)
 
+
+''' Splits sessions according to inactivity (time between two consecutive 
+    actions) and assign sessions to their user. Sessions should be sorted, 
+    both eventwise internally and compared to other sessions, but this should 
+    be automatically handled since the dataset is presorted
+'''
 def sort_and_split_usersessions():
     dataset_list = load_pickle(DATASET_USER_ARTIST_MAPPED)
     user_sessions = {}
@@ -77,15 +84,10 @@ def sort_and_split_usersessions():
         
         # if new user -> new session
         if user_id not in user_sessions:
-            # new user -> new list of session(lists)
             user_sessions[user_id] = []
-            # need pointer to the current session for this user
             current_session = []
-            # add the new session to this user
             user_sessions[user_id].append(current_session)
-            # add this event to the session
             current_session.append(event)
-            # go to next event
             continue
 
         # it is an existing user: is it a new session?
@@ -103,8 +105,38 @@ def sort_and_split_usersessions():
             current_session = [event]
             user_sessions[user_id].append(current_session)
 
-    # All good in da' hood. Save the data
-    save_pickle(user_sessions, DATASET_USER_SESSIONS)
+    # Remove sessions that only contain one event
+    # Bad to remove stuff from the lists we are iterating through, so create 
+    # a new datastructure and copy over what we want to keep
+    new_user_sessions = {}
+    for k in user_sessions.keys():
+        if k not in new_user_sessions:
+            new_user_sessions[k] = []
+
+        us = user_sessions[k]
+        for session in us:
+            if len(session) > 1:
+                new_user_sessions[k].append(session)
+
+    save_pickle(new_user_sessions, DATASET_USER_SESSIONS)
+
+''' Take sessions from mapping (user->sessions) and store a sessions in a flat 
+    list of sessions. Used for the plain RNN which has no concern for the 
+    actual user.
+'''
+def create_flat_list_of_user_sessions():
+    user_sessions = load_pickle(DATASET_USER_SESSIONS)
+    flat_data = []
+    
+    for _, us in user_sessions.items():
+        for session in us:
+            s = []
+            for event in session:
+                s.append(event[2])
+
+            flat_data.append(s)
+
+    save_pickle(flat_data, DATASET_PLAIN_RNN)
 
 
 # It takes a lot of time to convert the ISO timestamps in the dataset
@@ -119,8 +151,14 @@ if not file_exists(DATASET_W_CONVERTED_TIMESTAMPS):
 if not file_exists(DATASET_USER_ARTIST_MAPPED):
     map_user_and_artist_id_to_labels()
 
+# Collect events into sessions, and assign the sessions to their user. Also
+# remove sessions with only one event.
 if not file_exists(DATASET_USER_SESSIONS):
     sort_and_split_usersessions()
 
+# Put all sessions in a flat list, which is more appropriate for the plain
+# RNN.
+if not file_exists(DATASET_PLAIN_RNN):
+    create_flat_list_of_user_sessions()
 
 print("Runtime:", str(time.time()-runtime))
