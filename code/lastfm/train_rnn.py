@@ -16,10 +16,10 @@ dataset_path = os.path.expanduser('~') + '/datasets/lastfm-dataset-1K/lastfm_as_
 tf.set_random_seed(0)
 
 N_ITEMS      = -1       # number of items (size of 1-hot vector) (number of artists or songs in lastfm case)
-BATCHSIZE    = 100      #
+BATCHSIZE    = 50       #
 INTERNALSIZE = 512      # size of internal vectors/states in the rnn
 N_LAYERS     = 1        # number of layers in the rnn
-SEQLEN       = 20       # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
+SEQLEN       = 10       # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
 
 learning_rate = 0.001   # fixed learning rate
 dropout_pkeep = 1.0     # no dropout
@@ -38,7 +38,7 @@ print("CONFIG: N_ITEMS=", N_ITEMS, "BATCHSIZE=", BATCHSIZE, "INTERNALSIZE=", INT
 print("Creating model.")
 cpu = ['/cpu:0']
 gpu = ['/gpu:0', '/gpu:1']
-with tf.device(cpu[0]):
+with tf.device(gpu[0]):
     lr = tf.placeholder(tf.float32, name='lr')              # learning rate
     pkeep = tf.placeholder(tf.float32, name='pkeep')        # dropout parameter
     batchsize = tf.placeholder(tf.int32, name='batchsize')
@@ -115,7 +115,7 @@ saver = tf.train.Saver(max_to_keep=1)
 # istate = np.zeros([BATCHSIZE, INTERNALSIZE*N_LAYERS])    # initial zero input state
 init = tf.global_variables_initializer()
 config = tf.ConfigProto()
-config.gpu_options.allow_growth = True      # be nice and don't use more memory than necessary
+#config.gpu_options.allow_growth = True      # be nice and don't use more memory than necessary
 sess = tf.Session(config=config)
 sess.run(init)
 
