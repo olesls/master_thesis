@@ -1,5 +1,6 @@
 # Code to train a plain RNN for prediction on the lastfm dataset
 
+
 import tensorflow as tf
 from tensorflow.contrib import layers
 from tensorflow.contrib import rnn  # will probably be moved to code in TF 1.1. Keep it imported as rnn to make the rest of the code independent of this.
