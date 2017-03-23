@@ -1,6 +1,5 @@
 # Code to train a plain RNN for prediction on the lastfm dataset
 
-
 import tensorflow as tf
 from tensorflow.contrib import layers
 from tensorflow.contrib import rnn  # will probably be moved to code in TF 1.1. Keep it imported as rnn to make the rest of the code independent of this.
@@ -20,22 +19,26 @@ N_ITEMS      = -1       # number of items (size of 1-hot vector) (number of arti
 BATCHSIZE    = 100      #
 INTERNALSIZE = 512      # size of internal vectors/states in the rnn
 N_LAYERS     = 1        # number of layers in the rnn
-SEQLEN       = 30       # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
+SEQLEN       = 20       # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
 
 learning_rate = 0.001   # fixed learning rate
 dropout_pkeep = 1.0     # no dropout
 
 # Load training data
-datahandler = PlainRNNDataHandler(dataset_path)
+datahandler = PlainRNNDataHandler(dataset_path, BATCHSIZE)
+datahandler.set_max_seq_len(SEQLEN)
 N_ITEMS = datahandler.get_num_items()
-SEQLEN = #TODO
+
+print("CONFIG: N_ITEMS=", N_ITEMS, "BATCHSIZE=", BATCHSIZE, "INTERNALSIZE=", INTERNALSIZE,
+        "N_LAYERS=", N_LAYERS, "SEQLEN=", SEQLEN)
 
 ##
 ## The model
 ##
+print("Creating model.")
+cpu = ['/cpu:0']
 gpu = ['/gpu:0', '/gpu:1']
-
-with tf.device(gpu[1]):
+with tf.device(cpu[0]):
     lr = tf.placeholder(tf.float32, name='lr')              # learning rate
     pkeep = tf.placeholder(tf.float32, name='pkeep')        # dropout parameter
     batchsize = tf.placeholder(tf.int32, name='batchsize')
@@ -45,8 +48,8 @@ with tf.device(gpu[1]):
     X_onehot = tf.one_hot(X, N_ITEMS, 1.0, 0.0)             # [ BATCHSIZE, SEQLEN, N_ITEMS ], on-value=1.0, off=0.0
 
     # Targets. Expected outputs = same sequence shifted by 1 since we are trying to predict the next artist/song
-    Y_ = tf.placeholder(tf.int32, [None, None], name='Y_')  # [ BATCH_SIZE, SEQLEN ]
-    Y_onehot = tf.one_hot(Y_, N_ITEMS, 1.0, 0.0)            # [ BATCH_SIZE, SEQLEN, N_ITEMS ]
+    Y_ = tf.placeholder(tf.int32, [None, None], name='Y_')  # [ BATCHSIZE, SEQLEN ]
+    Y_onehot = tf.one_hot(Y_, N_ITEMS, 1.0, 0.0)            # [ BATCHSIZE, SEQLEN, N_ITEMS ]
 
     # Input hidden state (only used for II-RNN)
     #H_in = tf.placeholder(tf.float32, [None, INTERNALSIZE x N_LAYERS], name='H_in')   # [ BATCHSIZE, INTERNALSIZE x N_LAYERS ]
@@ -109,22 +112,24 @@ saver = tf.train.Saver(max_to_keep=1)
 
 
 # Initialization
-# istate = np.zeros([BATCH_SIZE, INTERNALSIZE*N_LAYERS])    # initial zero input state
+# istate = np.zeros([BATCHSIZE, INTERNALSIZE*N_LAYERS])    # initial zero input state
 init = tf.global_variables_initializer()
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True      # be nice and don't use more memory than necessary
 sess = tf.Session(config=config)
 sess.run(init)
 
+print("Starting training")
 step = 0
 num_batches = datahandler.get_num_batches()
 for _batch_number in range(num_batches):
-    x, y = datahandler.get_next_batch()
-    # TODO
-    feed_dict = {X: xinput, Y: targetvalues, lr: learning_rate, pkeep: dropout_pkeep, batchsize: BATCHSIZE}
+    batch_start_time = time.time()
+    xinput, targetvalues = datahandler.get_next_batch()
+    feed_dict = {X: xinput, Y_: targetvalues, lr: learning_rate, pkeep: dropout_pkeep, batchsize: BATCHSIZE}
     _, y, smm = sess.run([train_step, Y, summaries], feed_dict=feed_dict)
-
+    
     # save training data for Tensorboard
-    summary_writer.add_summary(ssm, step)
+    summary_writer.add_summary(smm, _batch_number)
 
-    step += BATCHSIZE * SEQLEN
+    batch_runtime = time.time() - batch_start_time
+    print("Batch number:", str(_batch_number), "/", str(num_batches), "| Batch time:", batch_runtime)
