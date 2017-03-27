@@ -19,7 +19,7 @@ N_ITEMS      = -1       # number of items (size of 1-hot vector) (number of arti
 BATCHSIZE    = 100      #
 INTERNALSIZE = 1000     # size of internal vectors/states in the rnn
 N_LAYERS     = 1        # number of layers in the rnn
-SEQLEN       = 30       # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
+SEQLEN       = 20       # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
 EMBEDDING_SIZE = 1000
 
 learning_rate = 0.001   # fixed learning rate
@@ -30,13 +30,15 @@ datahandler = PlainRNNDataHandler(dataset_path, BATCHSIZE)
 datahandler.set_max_seq_len(SEQLEN)
 N_ITEMS = datahandler.get_num_items()
 
+print("------------------------------------------------------------------------")
 print("CONFIG: N_ITEMS=", N_ITEMS, "BATCHSIZE=", BATCHSIZE, "INTERNALSIZE=", INTERNALSIZE,
-        "N_LAYERS=", N_LAYERS, "SEQLEN=", SEQLEN)
+        "N_LAYERS=", N_LAYERS, "SEQLEN=", SEQLEN, "EMBEDDING_SIZE=", EMBEDDING_SIZE)
+print("------------------------------------------------------------------------")
 
 ##
 ## The model
 ##
-print("Creating model.")
+print("Creating model")
 cpu = ['/cpu:0']
 gpu = ['/gpu:0', '/gpu:1']
 
@@ -46,7 +48,8 @@ with tf.device(cpu[0]):
 
     W_embed = tf.Variable(tf.random_uniform([N_ITEMS, EMBEDDING_SIZE], -1.0, 1.0), name='embeddings')
     X_embed = tf.nn.embedding_lookup(W_embed, X)
-    Y_embed = tf.nn.embedding_lookup(W_embed, Y_)
+    #Y_embed = tf.nn.embedding_lookup(W_embed, Y_)
+    #Y_onehot = tf.one_hot(Y_, N_ITEMS, 1.0, 0.0)            # [ BATCHSIZE, SEQLEN, N_ITEMS ]
 
 with tf.device(gpu[0]):
     lr = tf.placeholder(tf.float32, name='lr')              # learning rate
@@ -80,13 +83,19 @@ with tf.device(gpu[0]):
     # Flatten the RNN output first, to share weights across the unrolled time steps
     Yflat = tf.reshape(Yr, [-1, INTERNALSIZE])         # [ BATCHSIZE x SEQLEN, INTERNALSIZE ]
     # Change from internal size (from RNNCell) to N_ITEMS size
-    Ylogits = layers.linear(Yflat, EMBEDDING_SIZE)             # [ BATCHSIZE x SEQLEN, EMBEDDING_SIZE ]
+    Ylogits = layers.linear(Yflat, N_ITEMS)                     # [ BATCHSIZE x SEQLEN, N_ITEMS ]
+    #Ylogits = layers.linear(Yflat, EMBEDDING_SIZE)             # [ BATCHSIZE x SEQLEN, EMBEDDING_SIZE ]
+
+#with tf.device(cpu[0]):
     # Flatten expected outputs to match actual outputs
     #Y_flat_target = tf.reshape(Y_onehot, [-1, N_ITEMS]) # [ BATCHSIZE x SEQLEN, N_ITEMS ]
-    Y_flat_target = tf.reshape(Y_embed, [-1, EMBEDDING_SIZE]) # [ BATCHSIZE x SEQLEN, EMBEDDING_SIZE ]
+    #Y_flat_target = tf.reshape(Y_embed, [-1, EMBEDDING_SIZE]) # [ BATCHSIZE x SEQLEN, EMBEDDING_SIZE ]
+    Y_flat_target = tf.reshape(Y_, [-1])    # [ BATCHSIZE x SEQLEN ]
 
     # Calculate loss
-    loss = tf.nn.softmax_cross_entropy_with_logits(logits=Ylogits, labels=Y_flat_target)    # [ BATCHSIZE x SEQLEN ]
+    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=Ylogits, labels=Y_flat_target)    # [ BATCHSIZE x SEQLEN ]
+
+#with tf.device(gpu[0]):
     # Unflatten loss
     loss = tf.reshape(loss, [batchsize, -1])            # [ BATCHSIZE, SEQLEN ]
 
@@ -110,12 +119,6 @@ loss_summary = tf.summary.scalar("batch_loss", batchloss)
 acc_summary = tf.summary.scalar("batch_accuracy", accuracy)
 summaries = tf.summary.merge([loss_summary, acc_summary])
 
-# Tensorboard stuff
-# Saves Tensorboard information into a different folder at each run
-timestamp = str(math.trunc(time.time()))
-summary_writer = tf.summary.FileWriter("log/" + timestamp + "-training")
-#validation_writer = tf.summary.FileWriter("log/" + timestamp + "-validation")
-
 # Init to save models
 if not os.path.exists("checkpoints"):
     os.mkdir("checkpoints")
@@ -131,6 +134,12 @@ config = tf.ConfigProto()
 sess = tf.Session(config=config)
 sess.run(init)
 
+# Tensorboard stuff
+# Saves Tensorboard information into a different folder at each run
+timestamp = str(math.trunc(time.time()))
+summary_writer = tf.summary.FileWriter("log/" + timestamp + "-training", sess.graph)
+#validation_writer = tf.summary.FileWriter("log/" + timestamp + "-validation")
+
 print("Starting training")
 step = 0
 num_batches = datahandler.get_num_batches()
@@ -138,10 +147,13 @@ for _batch_number in range(num_batches):
     batch_start_time = time.time()
     xinput, targetvalues = datahandler.get_next_batch()
     feed_dict = {X: xinput, Y_: targetvalues, lr: learning_rate, pkeep: dropout_pkeep, batchsize: BATCHSIZE}
-    _, y, smm = sess.run([train_step, Y, summaries], feed_dict=feed_dict)
+    _, y, smm, bl = sess.run([train_step, Y, summaries, batchloss], feed_dict=feed_dict)
     
     # save training data for Tensorboard
     summary_writer.add_summary(smm, _batch_number)
 
     batch_runtime = time.time() - batch_start_time
-    print("Batch number:", str(_batch_number), "/", str(num_batches), "| Batch time:", batch_runtime)
+    print("Batch number:", str(_batch_number), "/", str(num_batches), "| Batch time:", batch_runtime, end='')
+    print(" | Batch loss:", bl)
+
+

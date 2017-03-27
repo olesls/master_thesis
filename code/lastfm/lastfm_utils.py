@@ -1,14 +1,18 @@
-import pickle
 import math
 import numpy as np
+import os
+import pickle
+import time
 
 class PlainRNNDataHandler:
     
     def __init__(self, dataset_path, batch_size):
         self.dataset_path = dataset_path
         self.batch_size = batch_size
-        print("Loading dataset.")
+        print("Loading dataset")
+        load_time = time.time()
         self.dataset = pickle.load(open(self.dataset_path, 'rb'))
+        print("|- dataset loaded in", str(time.time()-load_time), "s")
         self.current_index = 0
 
     def get_num_sequences(self):
@@ -62,23 +66,35 @@ class PlainRNNDataHandler:
         ''' Split sequences that are too long into shorter sequences based on 
             the specified maximum sequence length
         '''
-        print("Padding sequences.")
+        print("Padding sequences")
+        padding_time = time.time()
         self.max_seq_len = max_seq_len
-        
-        new_dataset = []
-        for sequence in self.dataset:
-            if len(sequence) < max_seq_len:
-                appended_sequence = self.pad_seq(sequence, max_seq_len)
-                new_dataset.append(appended_sequence)
-                continue
 
-            # The sequence is too long. Split it
-            splits = [sequence[i:i+max_seq_len] for i in range(0, len(sequence), max_seq_len)]
-            # The last sequence split might be too short (only one element), and should be removed in that case
-            if len(splits[-1]) == 1:
-                del splits[-1]
+        # check if we already have a stored version of the requested data
+        filename = "padded_" + str(max_seq_len)+".pickle"
+        if os.path.isfile(filename):
+            print("|- found existing version of data. Loading existing version")
+            self.dataset = pickle.load(open(filename, 'rb'))
+        else:
+            new_dataset = []
+            for sequence in self.dataset:
+                if len(sequence) < max_seq_len:
+                    appended_sequence = self.pad_seq(sequence, max_seq_len)
+                    new_dataset.append(appended_sequence)
+                    continue
 
-            splits = [self.pad_seq(s, max_seq_len) for s in splits]
-            new_dataset += splits
+                # The sequence is too long. Split it
+                splits = [sequence[i:i+max_seq_len] for i in range(0, len(sequence), max_seq_len)]
+                # The last sequence split might be too short (only one element), and should be removed in that case
+                if len(splits[-1]) == 1:
+                    del splits[-1]
 
-        self.dataset = new_dataset
+                splits = [self.pad_seq(s, max_seq_len) for s in splits]
+                new_dataset += splits
+
+            self.dataset = new_dataset
+            pickle.dump(self.dataset, open(filename, 'wb'))
+
+        print("|- sequences padded in", str(time.time()-padding_time), "s")
+
+
