@@ -18,7 +18,7 @@ DATASET_PLAIN_RNN = DATASET_DIR + '/lastfm_as_list_for_plain_rnn.pickle'
 # The maximum amount of time between two consequtive events before they are
 # considered belonging to different sessions. Remember to adjust for time 
 # to listen to a song. 30 minutes should be reasonable.
-SESSION_TIMEDELTA = 600 # seconds. 60*10=600 (10 minutes)
+SESSION_TIMEDELTA = 1200 # seconds. 60*20=1200 (20 minutes)
 
 def file_exists(filename):
     return os.path.isfile(filename)
@@ -118,7 +118,37 @@ def sort_and_split_usersessions():
             if len(session) > 1:
                 new_user_sessions[k].append(session)
 
-    save_pickle(new_user_sessions, DATASET_USER_SESSIONS)
+    # Remove users with only 1 session
+    # Find users with only 1 session first
+    to_be_removed = []
+    for k, v in new_user_sessions.items():
+        if len(v) == 1:
+            to_be_removed.append(k)
+    # Remove the users we found
+    for user in to_be_removed:
+        new_user_sessions.pop(user)
+
+
+    # Do a remapping to account for removed data
+    print("remapping to account for removed data...")
+
+    # remap users
+    nus = {}
+    for k, v in new_user_sessions.items():
+        nus[len(nus)] = new_user_sessions[k]
+    
+    # remap artistIDs
+    art = {}
+    for k, v in nus.items():
+        for session in v:
+            for i in range(len(session)):
+                a = session[i][2]
+                if a not in art:
+                    art[a] = len(art)
+                session[i][2] = art[a]
+    
+
+    save_pickle(nus, DATASET_USER_SESSIONS)
 
 ''' Take sessions from mapping (user->sessions) and store a sessions in a flat 
     list of sessions. Used for the plain RNN which has no concern for the 
@@ -144,21 +174,25 @@ def create_flat_list_of_user_sessions():
 # without modifying the dataset, and storing, so we can save time in the
 # future.
 if not file_exists(DATASET_W_CONVERTED_TIMESTAMPS):
+    print("converting timestamps... ")
     convert_timestamps()
 
 # Next we map the artist_ids to numbers (starting from 0), since this can be 
 # converted to 1-HOT encodings.
 if not file_exists(DATASET_USER_ARTIST_MAPPED):
+    print("mapping user and artist IDs to labels...")
     map_user_and_artist_id_to_labels()
 
 # Collect events into sessions, and assign the sessions to their user. Also
 # remove sessions with only one event.
 if not file_exists(DATASET_USER_SESSIONS):
+    print("sorting sessions to users...")
     sort_and_split_usersessions()
 
 # Put all sessions in a flat list, which is more appropriate for the plain
 # RNN.
 if not file_exists(DATASET_PLAIN_RNN):
+    print("creating flat version for plain RNN...")
     create_flat_list_of_user_sessions()
 
 print("Runtime:", str(time.time()-runtime))

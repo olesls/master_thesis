@@ -97,4 +97,4 @@ class PlainRNNDataHandler:
 
         print("|- sequences padded in", str(time.time()-padding_time), "s")
 
-
+#    def split_to_test_and_training(self, training_ratio=0.8):

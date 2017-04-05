@@ -51,7 +51,7 @@ with tf.device(cpu[0]):
     #Y_embed = tf.nn.embedding_lookup(W_embed, Y_)
     #Y_onehot = tf.one_hot(Y_, N_ITEMS, 1.0, 0.0)            # [ BATCHSIZE, SEQLEN, N_ITEMS ]
 
-with tf.device(gpu[0]):
+with tf.device(gpu[1]):
     lr = tf.placeholder(tf.float32, name='lr')              # learning rate
     pkeep = tf.placeholder(tf.float32, name='pkeep')        # dropout parameter
     batchsize = tf.placeholder(tf.int32, name='batchsize')
@@ -145,11 +145,15 @@ step = 0
 num_batches = datahandler.get_num_batches()
 for _batch_number in range(num_batches):
     batch_start_time = time.time()
+    print(" get next batch")
     xinput, targetvalues = datahandler.get_next_batch()
+    print(" feed dict")
     feed_dict = {X: xinput, Y_: targetvalues, lr: learning_rate, pkeep: dropout_pkeep, batchsize: BATCHSIZE}
+    print(" sess run")
     _, y, smm, bl = sess.run([train_step, Y, summaries, batchloss], feed_dict=feed_dict)
     
     # save training data for Tensorboard
+    print(" add summary")
     summary_writer.add_summary(smm, _batch_number)
 
     batch_runtime = time.time() - batch_start_time
