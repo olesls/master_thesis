@@ -16,7 +16,7 @@ dataset_path = os.path.expanduser('~') + '/datasets/lastfm-dataset-1K/lastfm_as_
 tf.set_random_seed(0)
 
 N_ITEMS      = -1       # number of items (size of 1-hot vector) (number of artists or songs in lastfm case)
-BATCHSIZE    = 100      #
+BATCHSIZE    = 50      #
 INTERNALSIZE = 1000     # size of internal vectors/states in the rnn
 N_LAYERS     = 1        # number of layers in the rnn
 SEQLEN       = 20       # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
@@ -43,18 +43,20 @@ cpu = ['/cpu:0']
 gpu = ['/gpu:0', '/gpu:1']
 
 with tf.device(cpu[0]):
-    X = tf.placeholder(tf.int32, [None, None], name='X')    # [ BATCHSIZE, SEQLEN ]
-    Y_ = tf.placeholder(tf.int32, [None, None], name='Y_')  # [ BATCHSIZE, SEQLEN ]
+    X = tf.placeholder(tf.int32, [BATCHSIZE, None], name='X')    # [ BATCHSIZE, SEQLEN ]
+    Y_ = tf.placeholder(tf.int32, [BATCHSIZE, None], name='Y_')  # [ BATCHSIZE, SEQLEN ]
 
     W_embed = tf.Variable(tf.random_uniform([N_ITEMS, EMBEDDING_SIZE], -1.0, 1.0), name='embeddings')
     X_embed = tf.nn.embedding_lookup(W_embed, X)
     #Y_embed = tf.nn.embedding_lookup(W_embed, Y_)
     #Y_onehot = tf.one_hot(Y_, N_ITEMS, 1.0, 0.0)            # [ BATCHSIZE, SEQLEN, N_ITEMS ]
 
-with tf.device(gpu[1]):
+with tf.device(gpu[0]):
+    seq_len = tf.placeholder(tf.int32, [BATCHSIZE], name='seqlen')
+    batchsize = tf.placeholder(tf.int32, name='batchsize')
+
     lr = tf.placeholder(tf.float32, name='lr')              # learning rate
     pkeep = tf.placeholder(tf.float32, name='pkeep')        # dropout parameter
-    batchsize = tf.placeholder(tf.int32, name='batchsize')
 
     # Inputs
     #X = tf.placeholder(tf.int32, [None, None], name='X')    # [ BATCHSIZE, SEQLEN ]
@@ -73,7 +75,7 @@ with tf.device(gpu[1]):
     multicell = rnn.MultiRNNCell([dropcell]*N_LAYERS, state_is_tuple=False)
     multicell = rnn.DropoutWrapper(multicell, output_keep_prob=pkeep)
     #Yr, H = tf.nn.dynamic_rnn(multicell, X_onehot, dtype=tf.float32)  # , initial_state=Hin) to set the initial state
-    Yr, H = tf.nn.dynamic_rnn(multicell, X_embed, dtype=tf.float32)
+    Yr, H = tf.nn.dynamic_rnn(multicell, X_embed, sequence_length=seq_len, dtype=tf.float32)
     # Yr: [ BATCHSIZE, SEQLEN, INTERNALSIZE ]
     # H:  [ BATCHSIZE, INTERNALSIZE x N_LAYERS ] # the last state in the sequence
 
@@ -146,9 +148,9 @@ num_batches = datahandler.get_num_batches()
 for _batch_number in range(num_batches):
     batch_start_time = time.time()
     print(" get next batch")
-    xinput, targetvalues = datahandler.get_next_batch()
+    xinput, targetvalues, sl = datahandler.get_next_batch()
     print(" feed dict")
-    feed_dict = {X: xinput, Y_: targetvalues, lr: learning_rate, pkeep: dropout_pkeep, batchsize: BATCHSIZE}
+    feed_dict = {X: xinput, Y_: targetvalues, lr: learning_rate, pkeep: dropout_pkeep, batchsize: BATCHSIZE, seq_len: sl}
     print(" sess run")
     _, y, smm, bl = sess.run([train_step, Y, summaries, batchloss], feed_dict=feed_dict)
     
