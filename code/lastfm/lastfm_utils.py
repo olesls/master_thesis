@@ -45,7 +45,7 @@ class PlainRNNDataHandler:
         x = batch[:-1]
         y = batch[1:]
         
-        return x, y, sl
+        return x, y, sl[:-1]
     
     def reset_batches(self):
         self.current_index = 0
@@ -105,9 +105,14 @@ class PlainRNNDataHandler:
                     if s[i] == -1:
                         index = i
                         break
-                self.sequence_lengths.append(index-1)
+                self.sequence_lengths.append(index)
             else:
-                self.sequence_lengths.append(len(s)-1)
+                self.sequence_lengths.append(len(s))
+
+        for s in self.dataset:
+            for i in range(len(s)):
+                if s[i]==-1:
+                    s[i] = 0
         
 
         print("|- sequences padded in", str(time.time()-padding_time), "s")

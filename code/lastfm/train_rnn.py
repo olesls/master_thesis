@@ -16,7 +16,7 @@ dataset_path = os.path.expanduser('~') + '/datasets/lastfm-dataset-1K/lastfm_as_
 tf.set_random_seed(0)
 
 N_ITEMS      = -1       # number of items (size of 1-hot vector) (number of artists or songs in lastfm case)
-BATCHSIZE    = 50      #
+BATCHSIZE    = 100      #
 INTERNALSIZE = 1000     # size of internal vectors/states in the rnn
 N_LAYERS     = 1        # number of layers in the rnn
 SEQLEN       = 20       # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
@@ -131,8 +131,8 @@ saver = tf.train.Saver(max_to_keep=1)
 # Initialization
 # istate = np.zeros([BATCHSIZE, INTERNALSIZE*N_LAYERS])    # initial zero input state
 init = tf.global_variables_initializer()
-config = tf.ConfigProto()
-#config.gpu_options.allow_growth = True      # be nice and don't use more memory than necessary
+config = tf.ConfigProto(allow_soft_placement=True)
+config.gpu_options.allow_growth = True      # be nice and don't use more memory than necessary
 sess = tf.Session(config=config)
 sess.run(init)
 
@@ -147,15 +147,12 @@ step = 0
 num_batches = datahandler.get_num_batches()
 for _batch_number in range(num_batches):
     batch_start_time = time.time()
-    print(" get next batch")
     xinput, targetvalues, sl = datahandler.get_next_batch()
-    print(" feed dict")
-    feed_dict = {X: xinput, Y_: targetvalues, lr: learning_rate, pkeep: dropout_pkeep, batchsize: BATCHSIZE, seq_len: sl}
-    print(" sess run")
+    feed_dict = {X: xinput, Y_: targetvalues, lr: learning_rate, pkeep: dropout_pkeep, batchsize: BATCHSIZE, 
+            seq_len: sl}
     _, y, smm, bl = sess.run([train_step, Y, summaries, batchloss], feed_dict=feed_dict)
     
     # save training data for Tensorboard
-    print(" add summary")
     summary_writer.add_summary(smm, _batch_number)
 
     batch_runtime = time.time() - batch_start_time
