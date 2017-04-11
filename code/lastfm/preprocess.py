@@ -69,6 +69,24 @@ def map_user_and_artist_id_to_labels():
     # Save to pickle file
     save_pickle(dataset_list, DATASET_USER_ARTIST_MAPPED)
 
+def split_single_session(session):
+    splitted = [session[i:i+MAX_SESSION_LENGTH] for i in range(0, len(session), MAX_SESSION_LENGTH)]
+    if len(splitted[-1]) < 2:
+        del splitted[-1]
+
+    return splitted
+
+def perform_session_splits(sessions):
+    splitted_sessions = []
+    for session in sessions:
+        splitted_sessions += split_single_session(session)
+
+    return splitted_sessions
+
+def split_long_sessions(user_sessions):
+    for k, v in user_sessions.items():
+        user_sessions[k] = perform_session_splits(v)
+
 
 ''' Splits sessions according to inactivity (time between two consecutive 
     actions) and assign sessions to their user. Sessions should be sorted, 
@@ -119,6 +137,10 @@ def sort_and_split_usersessions():
         for session in us:
             if len(session) > 1:
                 new_user_sessions[k].append(session)
+
+    # Split too long sessions, before removing user with too few sessions
+    #  because splitting can result in more sessions.
+    split_long_sessions(new_user_sessions)
 
     # Remove users with less than 1 session
     # Find users with less than 2 sessions first
