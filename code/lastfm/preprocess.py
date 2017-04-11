@@ -117,12 +117,14 @@ def sort_and_split_usersessions():
         last_timestamp = last_event[1]
         timedelta = last_timestamp - timestamp
 
+        new_event = [timestamp, artist]
+
         if timedelta < SESSION_TIMEDELTA:
             # new event belongs to current session
-            current_session.append(event)
+            current_session.append(new_event)
         else:
             # new event belongs to new session
-            current_session = [event]
+            current_session = [new_event]
             user_sessions[user_id].append(current_session)
 
     # Remove sessions that only contain one event
@@ -166,10 +168,10 @@ def sort_and_split_usersessions():
     for k, v in nus.items():
         for session in v:
             for i in range(len(session)):
-                a = session[i][2]
+                a = session[i][1]
                 if a not in art:
                     art[a] = len(art)
-                session[i][2] = art[a]
+                session[i][1] = art[a]
 
     save_pickle(nus, DATASET_USER_SESSIONS)
 
