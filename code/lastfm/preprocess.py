@@ -10,15 +10,17 @@ runtime = time.time()
 home = os.path.expanduser('~')
 DATASET_DIR = home + '/datasets/lastfm-dataset-1K'
 DATASET_FILE = DATASET_DIR + '/userid-timestamp-artid-artname-traid-traname.tsv'
-DATASET_W_CONVERTED_TIMESTAMPS = DATASET_DIR + '/lastfm_converted_timestamps.pickle'
-DATASET_USER_ARTIST_MAPPED = DATASET_DIR + '/lastfm_user_artist_mapped.pickle'
-DATASET_USER_SESSIONS = DATASET_DIR + '/lastfm_user_sessions.pickle'
-DATASET_PLAIN_RNN = DATASET_DIR + '/lastfm_as_list_for_plain_rnn.pickle'
+DATASET_W_CONVERTED_TIMESTAMPS = DATASET_DIR + '/lastfm_1_converted_timestamps.pickle'
+DATASET_USER_ARTIST_MAPPED = DATASET_DIR + '/lastfm_2_user_artist_mapped.pickle'
+DATASET_USER_SESSIONS = DATASET_DIR + '/lastfm_3_user_sessions.pickle'
+DATASET_USER_SESSIONS_SPLITTED = DATASET_DIR + '/lastfm_4_user_sessions_splitted.pickle'
+DATASET_TRAIN_TEST_SPLIT = DATASET_DIR + '/lastfm_5_train_test_split.pickle'
 
 # The maximum amount of time between two consequtive events before they are
 # considered belonging to different sessions. Remember to adjust for time 
 # to listen to a song. 30 minutes should be reasonable.
-SESSION_TIMEDELTA = 1200 # seconds. 60*20=1200 (20 minutes)
+SESSION_TIMEDELTA = 1200    # seconds. 60*20=1200 (20 minutes)
+MAX_SESSION_LENGTH = 20     # maximum number of events in a session
 
 def file_exists(filename):
     return os.path.isfile(filename)
@@ -118,11 +120,11 @@ def sort_and_split_usersessions():
             if len(session) > 1:
                 new_user_sessions[k].append(session)
 
-    # Remove users with only 1 session
-    # Find users with only 1 session first
+    # Remove users with less than 1 session
+    # Find users with less than 2 sessions first
     to_be_removed = []
     for k, v in new_user_sessions.items():
-        if len(v) == 1:
+        if len(v) < 2:
             to_be_removed.append(k)
     # Remove the users we found
     for user in to_be_removed:
@@ -146,53 +148,45 @@ def sort_and_split_usersessions():
                 if a not in art:
                     art[a] = len(art)
                 session[i][2] = art[a]
-    
 
     save_pickle(nus, DATASET_USER_SESSIONS)
 
-''' Take sessions from mapping (user->sessions) and store a sessions in a flat 
-    list of sessions. Used for the plain RNN which has no concern for the 
-    actual user.
 '''
-def create_flat_list_of_user_sessions():
-    user_sessions = load_pickle(DATASET_USER_SESSIONS)
-    flat_data = []
+def split_long_sessions():
+    dataset = load_pickle(DATASET_USER_SESSIONS)
+
+    save_pickle( , DATASET_USER_SESSIONS_SPLITTED)
+
+# Splits the dataset into a training and a testing set, by extracting the last
+# sessions of each user into the test set
+def split_to_training_and_testing():
+    dataset = load_pickle(DATASET_USER_SESSIONS_SPLITTED)
+
+    for k, v in dataset.items():
+        n_sessions = len(v)
+        
     
-    for _, us in user_sessions.items():
-        for session in us:
-            s = []
-            for event in session:
-                s.append(event[2])
+    save_pickle( , DATASET_TRAIN_TEST_SPLIT)
+'''
 
-            flat_data.append(s)
-
-    save_pickle(flat_data, DATASET_PLAIN_RNN)
-
-
-# It takes a lot of time to convert the ISO timestamps in the dataset
-# to unix timestamps (easier to work with). So first step is to convert these
-# without modifying the dataset, and storing, so we can save time in the
-# future.
 if not file_exists(DATASET_W_CONVERTED_TIMESTAMPS):
-    print("converting timestamps... ")
+    print("Converting timestamps.")
     convert_timestamps()
 
-# Next we map the artist_ids to numbers (starting from 0), since this can be 
-# converted to 1-HOT encodings.
 if not file_exists(DATASET_USER_ARTIST_MAPPED):
-    print("mapping user and artist IDs to labels...")
+    print("Mapping user and artist IDs to labels.")
     map_user_and_artist_id_to_labels()
 
-# Collect events into sessions, and assign the sessions to their user. Also
-# remove sessions with only one event.
 if not file_exists(DATASET_USER_SESSIONS):
-    print("sorting sessions to users...")
+    print("Sorting sessions to users.")
     sort_and_split_usersessions()
 
-# Put all sessions in a flat list, which is more appropriate for the plain
-# RNN.
-if not file_exists(DATASET_PLAIN_RNN):
-    print("creating flat version for plain RNN...")
-    create_flat_list_of_user_sessions()
+'''if not file_exists(DATASET_USER_SESSIONS_SPLITTED):
+    print("Splitting sessions based on max lengt (", MAX_SESSION_LENGTH,")")
+    split_long_sessions()
 
+if not file_exists(DATASET_TRAIN_TEST_SPLIT):
+    print("Splitting dataset into training and testing sets.")
+    split_to_training_and_testing()
+'''
 print("Runtime:", str(time.time()-runtime))

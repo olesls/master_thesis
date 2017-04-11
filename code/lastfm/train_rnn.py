@@ -9,7 +9,7 @@ import math
 import numpy as np
 from lastfm_utils import PlainRNNDataHandler
 
-dataset_path = os.path.expanduser('~') + '/datasets/lastfm-dataset-1K/lastfm_as_list_for_plain_rnn.pickle'
+dataset_path = os.path.expanduser('~') + '/datasets/lastfm-dataset-1K/lastfm_user_sessions.pickle'
 
 # This might not work, might have to set the seed inside the training loop or something
 # TODO: Check if this works, google it if it does not work.
@@ -26,8 +26,7 @@ learning_rate = 0.001   # fixed learning rate
 dropout_pkeep = 1.0     # no dropout
 
 # Load training data
-datahandler = PlainRNNDataHandler(dataset_path, BATCHSIZE)
-datahandler.set_max_seq_len(SEQLEN)
+datahandler = PlainRNNDataHandler(dataset_path, BATCHSIZE, SEQLEN)
 N_ITEMS = datahandler.get_num_items()
 
 print("------------------------------------------------------------------------")
@@ -142,10 +141,16 @@ timestamp = str(math.trunc(time.time()))
 summary_writer = tf.summary.FileWriter("log/" + timestamp + "-training", sess.graph)
 #validation_writer = tf.summary.FileWriter("log/" + timestamp + "-validation")
 
+##
+##  TRAINING
+##
+
 print("Starting training")
 step = 0
 num_batches = datahandler.get_num_batches()
-for _batch_number in range(num_batches):
+for _batch_number in range(10):
+#for _batch_number in range(num_batches):
+    epoch_loss = 0
     batch_start_time = time.time()
     xinput, targetvalues, sl = datahandler.get_next_batch()
     feed_dict = {X: xinput, Y_: targetvalues, lr: learning_rate, pkeep: dropout_pkeep, batchsize: BATCHSIZE, 
@@ -156,7 +161,14 @@ for _batch_number in range(num_batches):
     summary_writer.add_summary(smm, _batch_number)
 
     batch_runtime = time.time() - batch_start_time
+    epoch_loss += bl
     print("Batch number:", str(_batch_number), "/", str(num_batches), "| Batch time:", batch_runtime, end='')
     print(" | Batch loss:", bl)
+
+
+
+##
+##  TESTING
+##
 
 
