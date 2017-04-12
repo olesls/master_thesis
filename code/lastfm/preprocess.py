@@ -3,7 +3,7 @@ import pickle
 import os
 import time
 
-# There should be a total of 19 150 868 songlistenings
+# There should be a total of ~19 150 868 songlistenings
 
 runtime = time.time()
 
@@ -13,14 +13,16 @@ DATASET_FILE = DATASET_DIR + '/userid-timestamp-artid-artname-traid-traname.tsv'
 DATASET_W_CONVERTED_TIMESTAMPS = DATASET_DIR + '/lastfm_1_converted_timestamps.pickle'
 DATASET_USER_ARTIST_MAPPED = DATASET_DIR + '/lastfm_2_user_artist_mapped.pickle'
 DATASET_USER_SESSIONS = DATASET_DIR + '/lastfm_3_user_sessions.pickle'
-DATASET_USER_SESSIONS_SPLITTED = DATASET_DIR + '/lastfm_4_user_sessions_splitted.pickle'
-DATASET_TRAIN_TEST_SPLIT = DATASET_DIR + '/lastfm_5_train_test_split.pickle'
+DATASET_TRAIN_TEST_SPLIT = DATASET_DIR + '/lastfm_4_train_test_split.pickle'
 
 # The maximum amount of time between two consequtive events before they are
 # considered belonging to different sessions. Remember to adjust for time 
 # to listen to a song. 30 minutes should be reasonable.
 SESSION_TIMEDELTA = 1200    # seconds. 60*20=1200 (20 minutes)
 MAX_SESSION_LENGTH = 20     # maximum number of events in a session
+MINIMUM_REQUIRED_SESSIONS = 3 # The dual-RNN should have minimum 2 two train + 1 to test
+PAD_VALUE = 0   # Doesn't really matter, since these values are ignored, but must be same as a valid label
+
 
 def file_exists(filename):
     return os.path.isfile(filename)
@@ -144,11 +146,11 @@ def sort_and_split_usersessions():
     #  because splitting can result in more sessions.
     split_long_sessions(new_user_sessions)
 
-    # Remove users with less than 1 session
-    # Find users with less than 2 sessions first
+    # Remove users with less than 3 session
+    # Find users with less than 3 sessions first
     to_be_removed = []
     for k, v in new_user_sessions.items():
-        if len(v) < 2:
+        if len(v) < MINIMUM_REQUIRED_SESSIONS:
             to_be_removed.append(k)
     # Remove the users we found
     for user in to_be_removed:
@@ -175,23 +177,70 @@ def sort_and_split_usersessions():
 
     save_pickle(nus, DATASET_USER_SESSIONS)
 
-'''
-def split_long_sessions():
-    dataset = load_pickle(DATASET_USER_SESSIONS)
 
-    save_pickle( , DATASET_USER_SESSIONS_SPLITTED)
+def get_session_lengths(dataset):
+    session_lengths = {}
+    for k, v in dataset.items():
+        session_lengths[k] = []
+        for session in v:
+            session_lengths[k].append(len(session))
+
+    return session_lengths
+
+def create_padded_sequence(session):
+    if len(session) == MAX_SESSION_LENGTH:
+        return session
+
+    dummy_timestamp = 0
+    dummy_label = 0
+    length_to_pad = MAX_SESSION_LENGTH - len(session)
+    padding = [[dummy_timestamp, dummy_label]] * length_to_pad
+    session += padding
+    return session
+
+def pad_sequences(dataset):
+    for k, v in dataset.items():
+        for session_index in range(len(v)):
+            dataset[k][session_index] = create_padded_sequence(dataset[k][session_index])
 
 # Splits the dataset into a training and a testing set, by extracting the last
 # sessions of each user into the test set
 def split_to_training_and_testing():
-    dataset = load_pickle(DATASET_USER_SESSIONS_SPLITTED)
+    dataset = load_pickle(DATASET_USER_SESSIONS)
+    trainset = {}
+    testset = {}
 
     for k, v in dataset.items():
         n_sessions = len(v)
+        split_point = int(0.8*n_sessions)
         
+        # runtime check to ensure that we have enough sessions for training and testing
+        if split_point < 2:
+            raise ValueError('User '+str(k)+' with '+str(n_sessions)+""" sessions, 
+                resulted in split_point: '+str(split_point)+' which gives too 
+                few training sessions. Please check that data and preprocessing 
+                is correct.""")
+        
+        trainset[k] = v[:split_point]
+        testset[k] = v[split_point:]
+
+    # Also need to know session lengths for train- and testset
+    train_session_lengths = get_session_lengths(trainset)
+    test_session_lengths = get_session_lengths(testset)
+
+    # Finally, pad all sequences before storing everything
+    pad_sequences(trainset)
+    pad_sequences(testset)
+
+    # Put everything we want to store in a dict, and just store the dict with pickle
+    pickle_dict = {}
+    pickle_dict['trainset'] = trainset
+    pickle_dict['testset'] = testset
+    pickle_dict['train_session_lengths'] = train_session_lengths
+    pickle_dict['test_session_lengths'] = test_session_lengths
     
-    save_pickle( , DATASET_TRAIN_TEST_SPLIT)
-'''
+    save_pickle(pickle_dict , DATASET_TRAIN_TEST_SPLIT)
+
 
 if not file_exists(DATASET_W_CONVERTED_TIMESTAMPS):
     print("Converting timestamps.")
@@ -205,12 +254,9 @@ if not file_exists(DATASET_USER_SESSIONS):
     print("Sorting sessions to users.")
     sort_and_split_usersessions()
 
-'''if not file_exists(DATASET_USER_SESSIONS_SPLITTED):
-    print("Splitting sessions based on max lengt (", MAX_SESSION_LENGTH,")")
-    split_long_sessions()
-
 if not file_exists(DATASET_TRAIN_TEST_SPLIT):
     print("Splitting dataset into training and testing sets.")
     split_to_training_and_testing()
-'''
+
+
 print("Runtime:", str(time.time()-runtime))
