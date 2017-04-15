@@ -183,7 +183,7 @@ def get_session_lengths(dataset):
     for k, v in dataset.items():
         session_lengths[k] = []
         for session in v:
-            session_lengths[k].append(len(session))
+            session_lengths[k].append(len(session)-1)
 
     return session_lengths
 

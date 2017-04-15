@@ -9,7 +9,7 @@ import math
 import numpy as np
 from lastfm_utils import PlainRNNDataHandler
 
-dataset_path = os.path.expanduser('~') + '/datasets/lastfm-dataset-1K/lastfm_user_sessions.pickle'
+dataset_path = os.path.expanduser('~') + '/datasets/lastfm-dataset-1K/lastfm_4_train_test_split.pickle'
 
 # This might not work, might have to set the seed inside the training loop or something
 # TODO: Check if this works, google it if it does not work.
@@ -19,14 +19,14 @@ N_ITEMS      = -1       # number of items (size of 1-hot vector) (number of arti
 BATCHSIZE    = 100      #
 INTERNALSIZE = 1000     # size of internal vectors/states in the rnn
 N_LAYERS     = 1        # number of layers in the rnn
-SEQLEN       = 20       # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
+SEQLEN       = 20-1     # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
 EMBEDDING_SIZE = 1000
 
 learning_rate = 0.001   # fixed learning rate
 dropout_pkeep = 1.0     # no dropout
 
 # Load training data
-datahandler = PlainRNNDataHandler(dataset_path, BATCHSIZE, SEQLEN)
+datahandler = PlainRNNDataHandler(dataset_path, BATCHSIZE)
 N_ITEMS = datahandler.get_num_items()
 
 print("------------------------------------------------------------------------")

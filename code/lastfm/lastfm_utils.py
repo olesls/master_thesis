@@ -6,10 +6,9 @@ import time
 
 class PlainRNNDataHandler:
     
-    def __init__(self, dataset_path, batch_size, sequence_length):
+    def __init__(self, dataset_path, batch_size):
         self.dataset_path = dataset_path
         self.batch_size = batch_size
-        self.sequence_length = sequence_length
         print("Loading dataset")
         load_time = time.time()
         dataset = pickle.load(open(self.dataset_path, 'rb'))
@@ -30,7 +29,21 @@ class PlainRNNDataHandler:
             raise Exception("""Testset and trainset have different 
                     amount of users.""")
 
-    
+    def add_unique_items_to_dict(self, items, dataset):
+        for k, v in dataset.items():
+            for session in v:
+                for event in session:
+                    item = event[1]
+                    if item not in items:
+                        items[item] = True
+        return items
+
+    def get_num_items(self):
+        items = {}
+        items = self.add_unique_items_to_dict(items, self.trainset)
+        items = self.add_unique_items_to_dict(items, self.testset)
+        return len(items)
+
     def get_num_sessions(self, dataset):
         session_count = 0
         for k, v in dataset.items():
