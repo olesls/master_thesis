@@ -148,11 +148,17 @@ summary_writer = tf.summary.FileWriter("log/" + timestamp + "-training", sess.gr
 print("Starting training")
 step = 0
 num_batches = datahandler.get_num_batches()
-for _batch_number in range(10):
+for _batch_number in range(1):
 #for _batch_number in range(num_batches):
     epoch_loss = 0
     batch_start_time = time.time()
     xinput, targetvalues, sl = datahandler.get_next_batch()
+    print("XINPUT")
+    print(xinput[0])
+    print("TARGETVALUES")
+    print(targetvalues[0])
+    print("SL")
+    print(sl)
     feed_dict = {X: xinput, Y_: targetvalues, lr: learning_rate, pkeep: dropout_pkeep, batchsize: BATCHSIZE, 
             seq_len: sl}
     _, y, smm, bl = sess.run([train_step, Y, summaries, batchloss], feed_dict=feed_dict)

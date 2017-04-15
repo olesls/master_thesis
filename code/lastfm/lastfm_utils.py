@@ -15,7 +15,7 @@ class PlainRNNDataHandler:
         print("|- dataset loaded in", str(time.time()-load_time), "s")
         
         self.trainset = dataset['trainset']
-        setf.testset = dataset['testset']
+        self.testset = dataset['testset']
         self.train_session_lengths = dataset['train_session_lengths']
         self.test_session_lengths = dataset['test_session_lengths']
 
