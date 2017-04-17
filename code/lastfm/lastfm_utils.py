@@ -55,14 +55,14 @@ class PlainRNNDataHandler:
         return math.ceil(num_sessions/self.batch_size)
 
     def get_num_training_batches(self):
-        self.get_num_batches(self.trainset)
+        return self.get_num_batches(self.trainset)
 
     def get_num_test_batches(self):
-        self.get_num_batches(self.testset)
+        return self.get_num_batches(self.testset)
     
-    def get_subbatch(self, dataset, current_user, current_index, max_size):
+    def get_subbatch(self, dataset, dataset_session_lengths, current_user, current_index, max_size):
         num_remaining_sessions_for_user = len(dataset[current_user]) - current_index
-        b, sl, cu, ci = 0
+        b, sl, cu, ci = 0, 0, 0, 0
         if num_remaining_sessions_for_user < max_size:
             # can use the whole of the remaining sessions for current user
             b  = dataset[current_user][current_index:]
@@ -81,9 +81,9 @@ class PlainRNNDataHandler:
 
     def process_batch(self, batch):
         batch = [[event[1] for event in session] for session in batch]
-
-        x = batch[:-1]
-        y = batch[1:]
+        
+        x = [session[:-1] for session in batch]
+        y = [session[1:] for session in batch]
 
         return x, y
 
@@ -93,13 +93,12 @@ class PlainRNNDataHandler:
 
         while len(batch) < self.batch_size and current_user < self.num_users:
             num_remaining_sessions = self.batch_size - len(batch)
-            sessions, sl, current_user, current_index = get_subbatch(dataset, 
+            sessions, sl, current_user, current_index = self.get_subbatch(dataset, 
                     dataset_session_lengths, current_user, current_index, num_remaining_sessions)
 
-            batches += sessions
+            batch += sessions
             session_lengths += sl
         
-        session_lengths = session_lengths[:-1]  # only for X
         x, y = self.process_batch(batch)
 
         return x, y, session_lengths, current_user, current_index
