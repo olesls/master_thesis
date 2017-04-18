@@ -87,7 +87,7 @@ class PlainRNNDataHandler:
 
         return x, y
 
-    def get_next_batch(self, dataset, dataset_session_lengths, current_index, current_user):
+    def get_next_batch(self, dataset, dataset_session_lengths, current_user, current_index):
         batch = []
         session_lengths = []
 
@@ -109,6 +109,10 @@ class PlainRNNDataHandler:
         self.train_current_user = cu
         self.train_current_session_index = ci
 
+        print()
+        print("new batch")
+        print(cu, ci)
+
         return x, y, sl
 
     def get_next_test_batch(self):
@@ -118,3 +122,17 @@ class PlainRNNDataHandler:
         self.test_current_session_index = ci
 
         return x, y, sl
+
+    def reset_batches(self):
+        self.test_current_session_index = 0
+        self.test_current_session_index = 0
+        self.train_current_user = 0
+        self.train_current_user = 0
+
+    def get_latest_epoch(self, epoch_file):
+        if not os.path.isfile(epoch_file):
+            return 1
+        return pickle.load(open(epoch_file, 'rb'))
+    
+    def store_current_epoch(self, epoch, epoch_file):
+        pickle.dump(epoch, open(epoch_file, 'wb'))

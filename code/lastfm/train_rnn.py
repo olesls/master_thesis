@@ -10,6 +10,9 @@ import numpy as np
 from lastfm_utils import PlainRNNDataHandler
 
 dataset_path = os.path.expanduser('~') + '/datasets/lastfm-dataset-1K/lastfm_4_train_test_split.pickle'
+epoch_file = './epoch_file.pickle'
+checkpoint_file = './checkpoints/plain-rnn.ckpt'
+
 
 # This might not work, might have to set the seed inside the training loop or something
 # TODO: Check if this works, google it if it does not work.
@@ -22,6 +25,7 @@ N_LAYERS     = 1        # number of layers in the rnn
 SEQLEN       = 20-1     # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
 EMBEDDING_SIZE = 1000
 TOP_K = 20
+MAX_EPOCHS = 10
 
 learning_rate = 0.001   # fixed learning rate
 dropout_pkeep = 1.0     # no dropout
@@ -89,7 +93,7 @@ with tf.device(gpu[0]):
     Y = tf.reshape(Y, [batchsize, -1], name='Y')        # [ BATCHSIZE, SEQLEN ]
     
     # Get prediction
-    top_k_values, top_k_predictions = tf.nn.top_k(Yout_softmax, k=TOP_K)        # [BATCHSIZE x SEQLEN, TOP_K]
+    top_k_values, top_k_predictions = tf.nn.top_k(Ylogits, k=TOP_K)        # [BATCHSIZE x SEQLEN, TOP_K]
     Y_prediction = tf.reshape(top_k_predictions, [batchsize, -1, TOP_K], name='YTopKPred')
 
     # Training
@@ -120,7 +124,7 @@ init = tf.global_variables_initializer()
 config = tf.ConfigProto(allow_soft_placement=True)
 config.gpu_options.allow_growth = True      # be nice and don't use more memory than necessary
 sess = tf.Session(config=config)
-sess.run(init)
+saver = tf.train.Saver()
 
 # Tensorboard stuff
 # Saves Tensorboard information into a different folder at each run
@@ -133,27 +137,57 @@ summary_writer = tf.summary.FileWriter("log/" + timestamp + "-training", sess.gr
 ##
 
 print("Starting training.")
+epoch = datahandler.get_latest_epoch(epoch_file)
+print("|-Starting on epoch", epoch)
+if epoch > 1:
+    print("|--Restoring model.")
+    saver.restore(sess, checkpoint_file)
+else:
+    sess.run(init)
+
 num_batches = datahandler.get_num_training_batches()
-for _batch_number in range(10):
-#for _batch_number in range(num_batches):
+while epoch <= MAX_EPOCHS:
     epoch_loss = 0
-    batch_start_time = time.time()
 
-    xinput, targetvalues, sl = datahandler.get_next_train_batch()
-    feed_dict = {X: xinput, Y_: targetvalues, lr: learning_rate, pkeep: dropout_pkeep, batchsize: BATCHSIZE, 
-            seq_len: sl}
+    for _batch_number in range(2):
+    #for _batch_number in range(num_batches):
+        batch_start_time = time.time()
 
-    #_, y, smm, bl = sess.run([train_step, Y, summaries, batchloss], feed_dict=feed_dict)
-    _, bl = sess.run([train_step, batchloss], feed_dict=feed_dict)
+        xinput, targetvalues, sl = datahandler.get_next_train_batch()
+        
+        '''
+        print()
+        print("XINPUT")
+        print(xinput[:3])
+        print("TARGETVALUES")
+        print(targetvalues[:3])
+        print("SL")
+        print(sl[:3])
+        '''
+
+        feed_dict = {X: xinput, Y_: targetvalues, lr: learning_rate, pkeep: dropout_pkeep, batchsize: BATCHSIZE, 
+                seq_len: sl}
+
+        #_, y, smm, bl = sess.run([train_step, Y, summaries, batchloss], feed_dict=feed_dict)
+        _, bl = sess.run([train_step, batchloss], feed_dict=feed_dict)
     
-    # save training data for Tensorboard
-    #summary_writer.add_summary(smm, _batch_number)
+        # save training data for Tensorboard
+        #summary_writer.add_summary(smm, _batch_number)
 
-    batch_runtime = time.time() - batch_start_time
-    epoch_loss += bl
-    print("Batch number:", str(_batch_number), "/", str(num_batches), "| Batch time:", batch_runtime, end='')
-    print(" | Batch loss:", bl)
+        batch_runtime = time.time() - batch_start_time
+        epoch_loss += bl
+        print("Batch number:", str(_batch_number), "/", str(num_batches), "| Batch time:", batch_runtime, end='')
+        print(" | Batch loss:", bl)
 
+    print("Epoch", epoch, "finished")
+    print("|- Epoch loss:", epoch_loss)
+    datahandler.reset_batches()
+    epoch += 1
+
+    # Save the model
+    save_path = saver.save(sess, checkpoint_file)
+    print("Model saved in file:", save_path)
+    datahandler.store_current_epoch(epoch, epoch_file)
 
 
 ##
