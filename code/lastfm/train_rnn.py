@@ -161,7 +161,7 @@ while epoch <= MAX_EPOCHS:
     print("Starting epoch #"+str(epoch))
     epoch_loss = 0
 
-    for _batch_number in range(10):#num_training_batches):
+    for _batch_number in range(num_training_batches):
         batch_start_time = time.time()
 
         xinput, targetvalues, sl = datahandler.get_next_train_batch()
@@ -198,7 +198,7 @@ while epoch <= MAX_EPOCHS:
     print("Starting testing")
     recall, mrr = 0.0, 0.0
     evaluation_count = 0
-    for _ in range(10):#num_test_batches):
+    for _ in range(num_test_batches):
         xinput, targetvales, sl = datahandler.get_next_test_batch()
 
         feed_dict = {X: xinput, pkeep: 1.0, batchsize: BATCHSIZE, seq_len: sl}
