@@ -51,14 +51,14 @@ cpu = ['/cpu:0']
 gpu = ['/gpu:0', '/gpu:1']
 
 with tf.device(cpu[0]):
-    X = tf.placeholder(tf.int32, [BATCHSIZE, None], name='X')    # [ BATCHSIZE, SEQLEN ]
-    Y_ = tf.placeholder(tf.int32, [BATCHSIZE, None], name='Y_')  # [ BATCHSIZE, SEQLEN ]
+    X = tf.placeholder(tf.int32, [None, None], name='X')    # [ BATCHSIZE, SEQLEN ]
+    Y_ = tf.placeholder(tf.int32, [None, None], name='Y_')  # [ BATCHSIZE, SEQLEN ]
 
     W_embed = tf.Variable(tf.random_uniform([N_ITEMS, EMBEDDING_SIZE], -1.0, 1.0), name='embeddings')
     X_embed = tf.nn.embedding_lookup(W_embed, X)
 
 with tf.device(gpu[0]):
-    seq_len = tf.placeholder(tf.int32, [BATCHSIZE], name='seqlen')
+    seq_len = tf.placeholder(tf.int32, [None], name='seqlen')
     batchsize = tf.placeholder(tf.int32, name='batchsize')
 
     lr = tf.placeholder(tf.float32, name='lr')              # learning rate
@@ -166,7 +166,7 @@ while epoch <= MAX_EPOCHS:
 
         xinput, targetvalues, sl = datahandler.get_next_train_batch()
         
-        feed_dict = {X: xinput, Y_: targetvalues, lr: learning_rate, pkeep: dropout_pkeep, batchsize: BATCHSIZE, 
+        feed_dict = {X: xinput, Y_: targetvalues, lr: learning_rate, pkeep: dropout_pkeep, batchsize: len(xinput), 
                 seq_len: sl}
 
         _, bl = sess.run([train_step, batchloss], feed_dict=feed_dict)
@@ -178,7 +178,9 @@ while epoch <= MAX_EPOCHS:
         epoch_loss += bl
         if _batch_number%100==0:
             print("Batch number:", str(_batch_number+1), "/", str(num_training_batches), "| Batch time:", batch_runtime, end='')
-            print(" | Batch loss:", bl)
+            print(" | Batch loss:", bl, end='')
+            eta = (batch_runtime*(num_training_batches-_batch_number))/60
+            print(" | ETR:", eta, "minutes.")
 
     print("Epoch", epoch, "finished")
     print("|- Epoch loss:", epoch_loss)
@@ -201,7 +203,7 @@ while epoch <= MAX_EPOCHS:
     for _ in range(num_test_batches):
         xinput, targetvales, sl = datahandler.get_next_test_batch()
 
-        feed_dict = {X: xinput, pkeep: 1.0, batchsize: BATCHSIZE, seq_len: sl}
+        feed_dict = {X: xinput, pkeep: 1.0, batchsize: len(xinput), seq_len: sl}
         batch_predictions = sess.run([Y_prediction], feed_dict=feed_dict)
         batch_predictions = batch_predictions[0]
         
