@@ -1,3 +1,5 @@
+import datetime
+import logging
 import math
 import numpy as np
 import os
@@ -6,7 +8,7 @@ import time
 
 class PlainRNNDataHandler:
     
-    def __init__(self, dataset_path, batch_size):
+    def __init__(self, dataset_path, batch_size, test_log):
         self.dataset_path = dataset_path
         self.batch_size = batch_size
         print("Loading dataset")
@@ -28,6 +30,9 @@ class PlainRNNDataHandler:
         if len(self.trainset) != len(self.testset):
             raise Exception("""Testset and trainset have different 
                     amount of users.""")
+
+        self.test_log = test_log
+        logging.basicConfig(filename=test_log,level=logging.DEBUG)
 
     def add_unique_items_to_dict(self, items, dataset):
         for k, v in dataset.items():
@@ -109,10 +114,6 @@ class PlainRNNDataHandler:
         self.train_current_user = cu
         self.train_current_session_index = ci
 
-        print()
-        print("new batch")
-        print(cu, ci)
-
         return x, y, sl
 
     def get_next_test_batch(self):
@@ -124,10 +125,10 @@ class PlainRNNDataHandler:
         return x, y, sl
 
     def reset_batches(self):
-        self.test_current_session_index = 0
+        self.train_current_session_index = 0
         self.test_current_session_index = 0
         self.train_current_user = 0
-        self.train_current_user = 0
+        self.test_current_user = 0
 
     def get_latest_epoch(self, epoch_file):
         if not os.path.isfile(epoch_file):
@@ -136,3 +137,13 @@ class PlainRNNDataHandler:
     
     def store_current_epoch(self, epoch, epoch_file):
         pickle.dump(epoch, open(epoch_file, 'wb'))
+
+
+    def log_test_stats(self, epoch_number, epoch_loss, recall, mrr, k):
+        timestamp = str(datetime.datetime.now())
+        message = timestamp+'\n\tEpoch #: '+str(epoch_number)
+        message += '\n\t  Epoch loss: '+str(epoch_loss)
+        message += '\n\t  Recall@'+str(k)+': '+str(recall)
+        message += '\n\t  MRR@'+str(k)+': '+str(mrr)
+        message += '\n'
+        logging.info(message)

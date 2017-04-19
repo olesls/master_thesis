@@ -172,7 +172,7 @@ def sort_and_split_usersessions():
             for i in range(len(session)):
                 a = session[i][1]
                 if a not in art:
-                    art[a] = len(art)
+                    art[a] = len(art)+1
                 session[i][1] = art[a]
 
     save_pickle(nus, DATASET_USER_SESSIONS)
