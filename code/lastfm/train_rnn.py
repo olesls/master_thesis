@@ -146,13 +146,14 @@ summary_writer = tf.summary.FileWriter("log/" + timestamp + "-training", sess.gr
 
 print("Starting training.")
 epoch = datahandler.get_latest_epoch(epoch_file)
-print("|-Starting on epoch", epoch)
-if epoch > 1:
+print("|-Starting on epoch", epoch+1)
+if epoch > 0:
     print("|--Restoring model.")
     save_file = checkpoint_file + str(epoch) + checkpoint_file_ending
     saver.restore(sess, save_file)
 else:
     sess.run(init)
+epoch += 1
 print()
 
 num_training_batches = datahandler.get_num_training_batches()
@@ -160,7 +161,7 @@ num_test_batches = datahandler.get_num_test_batches()
 while epoch <= MAX_EPOCHS:
     print("Starting epoch #"+str(epoch))
     epoch_loss = 0
-
+    
     for _batch_number in range(num_training_batches):
         batch_start_time = time.time()
 
@@ -177,9 +178,10 @@ while epoch <= MAX_EPOCHS:
         batch_runtime = time.time() - batch_start_time
         epoch_loss += bl
         if _batch_number%100==0:
-            print("Batch number:", str(_batch_number+1), "/", str(num_training_batches), "| Batch time:", batch_runtime, end='')
+            print("Batch number:", str(_batch_number+1), "/", str(num_training_batches), "| Batch time:", "%.2f" % batch_runtime, " seconds", end='')
             print(" | Batch loss:", bl, end='')
             eta = (batch_runtime*(num_training_batches-_batch_number))/60
+            eta = "%.2f" % eta
             print(" | ETR:", eta, "minutes.")
 
     print("Epoch", epoch, "finished")
@@ -191,8 +193,8 @@ while epoch <= MAX_EPOCHS:
     save_path = saver.save(sess, save_file)
     print("|- Model saved in file:", save_path)
 
-    datahandler.store_current_epoch(epoch+1, epoch_file)
-
+    datahandler.store_current_epoch(epoch, epoch_file)
+    
 
     ##
     ##  TESTING
@@ -201,15 +203,20 @@ while epoch <= MAX_EPOCHS:
     recall, mrr = 0.0, 0.0
     evaluation_count = 0
     for _ in range(num_test_batches):
-        xinput, targetvales, sl = datahandler.get_next_test_batch()
+        print(_, "/", num_test_batches)
+        xinput, targetvalues, sl = datahandler.get_next_test_batch()
 
         feed_dict = {X: xinput, pkeep: 1.0, batchsize: len(xinput), seq_len: sl}
         batch_predictions = sess.run([Y_prediction], feed_dict=feed_dict)
         batch_predictions = batch_predictions[0]
-        
+
         for batch_index in range(len(batch_predictions)):
-            predicted_sequence = batch_predictions[batch_index]
-            target_sequence = targetvalues[batch_index]
+            try:
+                predicted_sequence = batch_predictions[batch_index]
+                target_sequence = targetvalues[batch_index]
+            except Exception:
+                print("len(batch_predictions)", len(batch_predictions))
+                print("batch_index", batch_index)
 
             for i in range(sl[batch_index]):
                 target_item = target_sequence[i]

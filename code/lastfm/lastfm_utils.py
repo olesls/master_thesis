@@ -132,7 +132,7 @@ class PlainRNNDataHandler:
 
     def get_latest_epoch(self, epoch_file):
         if not os.path.isfile(epoch_file):
-            return 1
+            return 0
         return pickle.load(open(epoch_file, 'rb'))
     
     def store_current_epoch(self, epoch, epoch_file):
