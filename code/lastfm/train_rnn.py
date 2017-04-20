@@ -51,6 +51,7 @@ cpu = ['/cpu:0']
 gpu = ['/gpu:0', '/gpu:1']
 
 with tf.device(cpu[0]):
+    # Inputs
     X = tf.placeholder(tf.int32, [None, None], name='X')    # [ BATCHSIZE, SEQLEN ]
     Y_ = tf.placeholder(tf.int32, [None, None], name='Y_')  # [ BATCHSIZE, SEQLEN ]
 
@@ -64,9 +65,7 @@ with tf.device(gpu[0]):
     lr = tf.placeholder(tf.float32, name='lr')              # learning rate
     pkeep = tf.placeholder(tf.float32, name='pkeep')        # dropout parameter
 
-    # Inputs
-
-    # RNN TODO: Ensure that multicell works even though we only have one layer
+    # RNN
     onecell = rnn.GRUCell(INTERNALSIZE)
     dropcell = rnn.DropoutWrapper(onecell, input_keep_prob=pkeep)
     multicell = rnn.MultiRNNCell([dropcell]*N_LAYERS, state_is_tuple=False)
@@ -96,8 +95,7 @@ with tf.device(gpu[0]):
     loss = tf.reshape(masked_loss, [batchsize, -1])            # [ BATCHSIZE, SEQLEN ]
 
     # Get the index of the highest scoring prediction through Y
-    Yout_softmax = tf.nn.softmax(Ylogits, name='Yout')  # [BATCHSIZE x SEQLEN, EMBEDDING_SIZE ] TODO: Do we really need to softmax here?
-    Y = tf.argmax(Yout_softmax, 1)   # [ BATCHSIZE x SEQLEN ]
+    Y = tf.argmax(Ylogits, 1)   # [ BATCHSIZE x SEQLEN ]
     Y = tf.reshape(Y, [batchsize, -1], name='Y')        # [ BATCHSIZE, SEQLEN ]
     
     # Get prediction
