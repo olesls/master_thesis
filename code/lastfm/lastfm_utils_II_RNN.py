@@ -1,3 +1,4 @@
+import collections  # collections.deque(maxsize=10)
 import datetime
 import logging
 import math
@@ -31,6 +32,7 @@ class II_RNNDataHandler:
             raise Exception("""Testset and trainset have different 
                     amount of users.""")
 
+        istate = np.zeros([BATCHSIZE, INTERNALSIZE*N_LAYERS])    # initial zero input state
         self.user_session_representations = {}
         for k, v in self.trainset.items():
             self.user_session_representations[k] = []

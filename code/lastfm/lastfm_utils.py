@@ -138,6 +138,11 @@ class PlainRNNDataHandler:
     def store_current_epoch(self, epoch, epoch_file):
         pickle.dump(epoch, open(epoch_file, 'wb'))
 
+    
+    def add_timestamp_to_message(self, message):
+        timestamp = str(datetime.datetime.now())
+        message = timestamp+'\n'
+        return message
 
     def log_test_stats(self, epoch_number, epoch_loss, recall, mrr, k):
         timestamp = str(datetime.datetime.now())
@@ -147,3 +152,8 @@ class PlainRNNDataHandler:
         message += '\n\t  MRR@'+str(k)+': '+str(mrr)
         message += '\n'
         logging.info(message)
+
+    def log_config(self, config):
+        config = self.add_timestamp_to_message(config)
+        logging.info(config)
+

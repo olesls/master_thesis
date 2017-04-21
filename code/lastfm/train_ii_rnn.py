@@ -1,14 +1,14 @@
-# Code to train a plain RNN for prediction on the lastfm dataset
+# Code to train a intra-/inter-session RNN for prediction on the lastfm dataset
 
 import tensorflow as tf
 from tensorflow.contrib import layers
-from tensorflow.contrib import rnn  # will probably be moved to code in TF 1.1. Keep it imported as rnn to make the rest of the code independent of this.
+from tensorflow.contrib import rnn  # will probably be moved to code in TF 1.1
 import datetime
 import os
 import time
 import math
 import numpy as np
-from lastfm_utils import PlainRNNDataHandler
+from lastfm_utils_II_RNN import II_RNNDataHandler
 
 dataset_path = os.path.expanduser('~') + '/datasets/lastfm-dataset-1K/lastfm_4_train_test_split.pickle'
 epoch_file = './epoch_file.pickle'
@@ -23,11 +23,12 @@ log_file = './testlog/'+str(date_now)+'-testing'
 tf.set_random_seed(0)
 
 N_ITEMS      = -1       # number of items (size of 1-hot vector) (number of artists or songs in lastfm case)
-BATCHSIZE    = 100      #
-INTERNALSIZE = 100     # size of internal vectors/states in the rnn
+BATCHSIZE    = 50       #
+SHORTTERM_INTERNALSIZE = 1000     # size of internal vectors/states in the rnn
+LONGTERM_INTERNALSIZE = SHORTTERM_INTERNALSIZE  # need to be the same unless we add a layer inbetween.
 N_LAYERS     = 1        # number of layers in the rnn
 SEQLEN       = 20-1     # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
-EMBEDDING_SIZE = 100
+EMBEDDING_SIZE = 1000
 TOP_K = 20
 MAX_EPOCHS = 10
 
@@ -35,16 +36,13 @@ learning_rate = 0.001   # fixed learning rate
 dropout_pkeep = 1.0     # no dropout
 
 # Load training data
-datahandler = PlainRNNDataHandler(dataset_path, BATCHSIZE, log_file)
+datahandler = II_RNNDataHandler(dataset_path, BATCHSIZE, log_file)
 N_ITEMS = datahandler.get_num_items()
 
-message = "------------------------------------------------------------------------\n"
-message += "CONFIG: N_ITEMS="+str(N_ITEMS)+" BATCHSIZE="+str(BATCHSIZE)+" INTERNALSIZE="+str(INTERNALSIZE)
-message += "\nN_LAYERS="+str(N_LAYERS)+" SEQLEN="+str(SEQLEN)+" EMBEDDING_SIZE="+str(EMBEDDING_SIZE)
-message += "\n------------------------------------------------------------------------"
-datahandler.log_config(message)
-print(message)
-
+print("------------------------------------------------------------------------")
+print("CONFIG: N_ITEMS=", N_ITEMS, "BATCHSIZE=", BATCHSIZE, "INTERNALSIZE=", INTERNALSIZE,
+        "N_LAYERS=", N_LAYERS, "SEQLEN=", SEQLEN, "EMBEDDING_SIZE=", EMBEDDING_SIZE)
+print("------------------------------------------------------------------------")
 
 ##
 ## The model
@@ -67,13 +65,24 @@ with tf.device(gpu[0]):
 
     lr = tf.placeholder(tf.float32, name='lr')              # learning rate
     pkeep = tf.placeholder(tf.float32, name='pkeep')        # dropout parameter
+    
+    X_lt = tf.placeholder(tf.float32, [None, LONGTERM_INTERNALSIZE], name='') # [ BATCHSIZE, LT_INTERNALSIZE]
 
-    # RNN
-    onecell = rnn.GRUCell(INTERNALSIZE)
+    # Longterm RNN
+    lt_cell = rnn.GRUCell(LONGTERM_INTERNALSIZE)
+    lt_rnn_outputs, lt_rnn_states = tf.nn.dynamic_rnn(lt_cell, X_lt, 
+            sequence_length=seq_len_lt, dtype=tf.float32)
+
+    # Get the correct outputs (depends on session_lengths)
+    last_lt_rnn_output = tf.gather_nd(lt_rnn_outputs, tf.pack([tf.range(batchsize), seq_len_lt-1], axis=1))
+
+    # Shortterm RNN
+    onecell = rnn.GRUCell(SHORTTERM_INTERNALSIZE)
     dropcell = rnn.DropoutWrapper(onecell, input_keep_prob=pkeep)
     multicell = rnn.MultiRNNCell([dropcell]*N_LAYERS, state_is_tuple=False)
     multicell = rnn.DropoutWrapper(multicell, output_keep_prob=pkeep)
-    Yr, H = tf.nn.dynamic_rnn(multicell, X_embed, sequence_length=seq_len, dtype=tf.float32)
+    Yr, H = tf.nn.dynamic_rnn(multicell, X_embed, 
+            sequence_length=seq_len, dtype=tf.float32, initial_state=last_lt_rnn_output)
 
     H = tf.identity(H, name='H') # just to give it a name
 
@@ -128,7 +137,7 @@ saver = tf.train.Saver(max_to_keep=1)
 
 
 # Initialization
-# istate = np.zeros([BATCHSIZE, INTERNALSIZE*N_LAYERS])    # initial zero input state
+#istate = np.zeros([BATCHSIZE, INTERNALSIZE*N_LAYERS])    # initial zero input state
 init = tf.global_variables_initializer()
 config = tf.ConfigProto(allow_soft_placement=True)
 config.gpu_options.allow_growth = True      # be nice and don't use more memory than necessary
@@ -162,13 +171,14 @@ num_test_batches = datahandler.get_num_test_batches()
 while epoch <= MAX_EPOCHS:
     print("Starting epoch #"+str(epoch))
     epoch_loss = 0
+    
     for _batch_number in range(num_training_batches):
         batch_start_time = time.time()
 
         xinput, targetvalues, sl = datahandler.get_next_train_batch()
         
-        feed_dict = {X: xinput, Y_: targetvalues, lr: learning_rate, pkeep: 
-                dropout_pkeep, batchsize: len(xinput), seq_len: sl}
+        feed_dict = {X: xinput, Y_: targetvalues, lr: learning_rate, pkeep: dropout_pkeep, batchsize: len(xinput), 
+                seq_len: sl}
 
         _, bl = sess.run([train_step, batchloss], feed_dict=feed_dict)
     
@@ -203,6 +213,7 @@ while epoch <= MAX_EPOCHS:
     recall, mrr = 0.0, 0.0
     evaluation_count = 0
     for _ in range(num_test_batches):
+        print(_, "/", num_test_batches)
         xinput, targetvalues, sl = datahandler.get_next_test_batch()
 
         feed_dict = {X: xinput, pkeep: 1.0, batchsize: len(xinput), seq_len: sl}
