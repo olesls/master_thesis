@@ -8,21 +8,21 @@ import time
 runtime = time.time()
 
 home = os.path.expanduser('~')
-DATASET_DIR = home + '/datasets/lastfm-dataset-1K'
-DATASET_FILE = DATASET_DIR + '/userid-timestamp-artid-artname-traid-traname.tsv'
-DATASET_W_CONVERTED_TIMESTAMPS = DATASET_DIR + '/lastfm_1_converted_timestamps.pickle'
-DATASET_USER_ARTIST_MAPPED = DATASET_DIR + '/lastfm_2_user_artist_mapped.pickle'
-DATASET_USER_SESSIONS = DATASET_DIR + '/lastfm_3_user_sessions.pickle'
-DATASET_TRAIN_TEST_SPLIT = DATASET_DIR + '/lastfm_4_train_test_split.pickle'
+DATASET_DIR = home + '/datasets/subreddit'
+DATASET_FILE = DATASET_DIR + '/reddit_data.csv'
+DATASET_W_CONVERTED_TIMESTAMPS = DATASET_DIR + '/1_converted_timestamps.pickle'
+DATASET_USER_ARTIST_MAPPED = DATASET_DIR + '/2_user_artist_mapped.pickle'
+DATASET_USER_SESSIONS = DATASET_DIR + '/3_user_sessions.pickle'
+DATASET_TRAIN_TEST_SPLIT = DATASET_DIR + '/4_train_test_split.pickle'
 
 # The maximum amount of time between two consequtive events before they are
 # considered belonging to different sessions. Remember to adjust for time 
 # to listen to a song. 30 minutes should be reasonable.
-SESSION_TIMEDELTA = 60*10    # seconds
+SESSION_TIMEDELTA = 60*60    # seconds. 60*60 = 1 hour
 MAX_SESSION_LENGTH = 20     # maximum number of events in a session
-MAX_SESSION_LENGTH_PRE_SPLIT = MAX_SESSION_LENGTH * 2
+MAX_SESSION_LENGTH_PRE_SPLIT = MAX_SESSION_LENGTH*2
 MINIMUM_REQUIRED_SESSIONS = 3 # The dual-RNN should have minimum 2 two train + 1 to test
-PAD_VALUE = 0   # Doesn't really matter, since these values are ignored, but must be same as a valid label
+PAD_VALUE = 0
 
 
 def file_exists(filename):
@@ -34,19 +34,23 @@ def load_pickle(pickle_file):
 def save_pickle(data_object, data_file):
     pickle.dump(data_object, open(data_file, 'wb'))
 
+# Modified version of the lastfm one. We just need to swap position of timestamp and subreddit here
 def convert_timestamps():
     dataset_list = []
     with open(DATASET_FILE, 'rt', buffering=10000, encoding='utf8') as dataset:
         for line in dataset:
-            line = line.split('\t')
+            line = line.rstrip()
+            line = line.split(',')
+            if line[2] == 'utc':
+                continue
             user_id     = line[0]
-            timestamp   = (dateutil.parser.parse(line[1])).timestamp()
-            artist_id   = line[2]
+            subreddit   = line[1]
+            timestamp   = float(line[2])
             # We will not use the rest of the information for now
             #artist_name = line[3]
             #track_id    = line[4]
             #track_name  = line[5]
-            dataset_list.append( [user_id, timestamp, artist_id] )
+            dataset_list.append( [user_id, timestamp, subreddit] )
 
     save_pickle(dataset_list, DATASET_W_CONVERTED_TIMESTAMPS)
 
@@ -90,7 +94,6 @@ def split_long_sessions(user_sessions):
     for k, v in user_sessions.items():
         user_sessions[k] = perform_session_splits(v)
 
-
 ''' Splits sessions according to inactivity (time between two consecutive 
     actions) and assign sessions to their user. Sessions should be sorted, 
     both eventwise internally and compared to other sessions, but this should 
@@ -112,7 +115,7 @@ def sort_and_split_usersessions():
             user_sessions[user_id] = []
             current_session = []
             user_sessions[user_id].append(current_session)
-            current_session.append([new_event])
+            current_session.append(new_event)
             continue
 
         # it is an existing user: is it a new session?
