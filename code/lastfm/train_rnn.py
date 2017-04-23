@@ -10,7 +10,8 @@ import math
 import numpy as np
 from lastfm_utils import PlainRNNDataHandler
 
-dataset_path = os.path.expanduser('~') + '/datasets/lastfm-dataset-1K/lastfm_4_train_test_split.pickle'
+#dataset_path = os.path.expanduser('~') + '/datasets/lastfm-dataset-1K/4_train_test_split.pickle'
+dataset_path = os.path.expanduser('~') + '/datasets/subreddit/4_train_test_split.pickle'
 epoch_file = './epoch_file.pickle'
 checkpoint_file = './checkpoints/plain-rnn-'
 checkpoint_file_ending = '.ckpt'
@@ -22,7 +23,7 @@ log_file = './testlog/'+str(date_now)+'-testing'
 # TODO: Check if this works
 tf.set_random_seed(0)
 
-N_ITEMS      = -1       # number of items (size of 1-hot vector) (number of artists or songs in lastfm case)
+N_ITEMS      = -1       # number of items (size of 1-hot vector) #labels
 BATCHSIZE    = 100      #
 INTERNALSIZE = 100     # size of internal vectors/states in the rnn
 N_LAYERS     = 1        # number of layers in the rnn
@@ -37,10 +38,13 @@ dropout_pkeep = 1.0     # no dropout
 # Load training data
 datahandler = PlainRNNDataHandler(dataset_path, BATCHSIZE, log_file)
 N_ITEMS = datahandler.get_num_items()
+N_SESSIONS = datahandler.get_num_sessions()
 
 message = "------------------------------------------------------------------------\n"
-message += "CONFIG: N_ITEMS="+str(N_ITEMS)+" BATCHSIZE="+str(BATCHSIZE)+" INTERNALSIZE="+str(INTERNALSIZE)
+message += "DATASET: "+dataset_path
+message += "\nCONFIG: N_ITEMS="+str(N_ITEMS)+" BATCHSIZE="+str(BATCHSIZE)+" INTERNALSIZE="+str(INTERNALSIZE)
 message += "\nN_LAYERS="+str(N_LAYERS)+" SEQLEN="+str(SEQLEN)+" EMBEDDING_SIZE="+str(EMBEDDING_SIZE)
+message += "\nN_SESSIONS="+str(N_SESSIONS)
 message += "\n------------------------------------------------------------------------"
 datahandler.log_config(message)
 print(message)

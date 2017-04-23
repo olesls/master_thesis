@@ -20,7 +20,7 @@ DATASET_TRAIN_TEST_SPLIT = DATASET_DIR + '/4_train_test_split.pickle'
 # to listen to a song. 30 minutes should be reasonable.
 SESSION_TIMEDELTA = 60*60    # seconds. 60*60 = 1 hour
 MAX_SESSION_LENGTH = 20     # maximum number of events in a session
-MAX_SESSION_LENGTH_PRE_SPLIT = MAX_SESSION_LENGTH*2
+MAX_SESSION_LENGTH_PRE_SPLIT = MAX_SESSION_LENGTH * 2
 MINIMUM_REQUIRED_SESSIONS = 3 # The dual-RNN should have minimum 2 two train + 1 to test
 PAD_VALUE = 0
 
