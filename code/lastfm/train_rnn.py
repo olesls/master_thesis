@@ -9,6 +9,7 @@ import time
 import math
 import numpy as np
 from lastfm_utils import PlainRNNDataHandler
+from test_util import Tester
 
 #dataset_path = os.path.expanduser('~') + '/datasets/lastfm-dataset-1K/4_train_test_split.pickle'
 dataset_path = os.path.expanduser('~') + '/datasets/subreddit/4_train_test_split.pickle'
@@ -25,10 +26,10 @@ tf.set_random_seed(0)
 
 N_ITEMS      = -1       # number of items (size of 1-hot vector) #labels
 BATCHSIZE    = 100      #
-INTERNALSIZE = 100     # size of internal vectors/states in the rnn
+INTERNALSIZE = 50     # size of internal vectors/states in the rnn
 N_LAYERS     = 1        # number of layers in the rnn
 SEQLEN       = 20-1     # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
-EMBEDDING_SIZE = 100
+EMBEDDING_SIZE = INTERNALSIZE
 TOP_K = 20
 MAX_EPOCHS = 10
 
@@ -38,14 +39,13 @@ dropout_pkeep = 1.0     # no dropout
 # Load training data
 datahandler = PlainRNNDataHandler(dataset_path, BATCHSIZE, log_file)
 N_ITEMS = datahandler.get_num_items()
-N_SESSIONS = datahandler.get_num_sessions()
+N_SESSIONS = datahandler.get_num_training_sessions()
 
 message = "------------------------------------------------------------------------\n"
 message += "DATASET: "+dataset_path
 message += "\nCONFIG: N_ITEMS="+str(N_ITEMS)+" BATCHSIZE="+str(BATCHSIZE)+" INTERNALSIZE="+str(INTERNALSIZE)
 message += "\nN_LAYERS="+str(N_LAYERS)+" SEQLEN="+str(SEQLEN)+" EMBEDDING_SIZE="+str(EMBEDDING_SIZE)
-message += "\nN_SESSIONS="+str(N_SESSIONS)
-message += "\n------------------------------------------------------------------------"
+message += "\nN_SESSIONS="+str(N_SESSIONS)+"\n"
 datahandler.log_config(message)
 print(message)
 
@@ -166,6 +166,7 @@ num_test_batches = datahandler.get_num_test_batches()
 while epoch <= MAX_EPOCHS:
     print("Starting epoch #"+str(epoch))
     epoch_loss = 0
+
     for _batch_number in range(num_training_batches):
         batch_start_time = time.time()
 
@@ -199,46 +200,40 @@ while epoch <= MAX_EPOCHS:
 
     datahandler.store_current_epoch(epoch, epoch_file)
     
-
     ##
     ##  TESTING
     ##
     print("Starting testing")
     recall, mrr = 0.0, 0.0
     evaluation_count = 0
+    tester = Tester()
     for _ in range(num_test_batches):
+        batch_start_time = time.time()
         xinput, targetvalues, sl = datahandler.get_next_test_batch()
 
         feed_dict = {X: xinput, pkeep: 1.0, batchsize: len(xinput), seq_len: sl}
         batch_predictions = sess.run([Y_prediction], feed_dict=feed_dict)
         batch_predictions = batch_predictions[0]
+        
+        # Evaluate predictions
+        tester.evaluate_batch(batch_predictions, targetvalues, sl)
 
-        for batch_index in range(len(batch_predictions)):
-            try:
-                predicted_sequence = batch_predictions[batch_index]
-                target_sequence = targetvalues[batch_index]
-            except Exception:
-                print("len(batch_predictions)", len(batch_predictions))
-                print("batch_index", batch_index)
+        # Print some stats during testing
+        batch_runtime = time.time() - batch_start_time
+        if _%100==0:
+            print("Batch number:", str(_+1), "/", str(num_test_batches), "| Batch time:", "%.2f" % batch_runtime, " seconds")
+            eta = (batch_runtime*(num_test_batches-_))/60
+            eta = "%.2f" % eta
+            print("ETR:", eta, "minutes.")
+            current_results = tester.get_stats()
+            print("Current evaluation:")
+            print(current_results)
 
-            for i in range(sl[batch_index]):
-                target_item = target_sequence[i]
-                k_predictions = predicted_sequence[i]
+    # Print final test stats for epoch
+    test_stats = tester.get_stats_and_reset()
+    print(test_stats)
 
-                if target_item in k_predictions:
-                    recall += 1
-                    rank = np.nonzero(k_predictions == target_item)[0][0]+1
-                    mrr += 1.0/rank
-
-                evaluation_count += 1
-    recall = recall/evaluation_count
-    mrr = mrr/evaluation_count
-
-    print("  Recall@"+str(TOP_K)+":", recall)
-    print("  MRR@"+str(TOP_K)+":", mrr)
-    print()
-
-    datahandler.log_test_stats(epoch, epoch_loss, recall, mrr, TOP_K)
+    datahandler.log_test_stats(epoch, epoch_loss, test_stats)
 
     datahandler.reset_batches()
     epoch += 1

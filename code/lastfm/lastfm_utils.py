@@ -55,6 +55,9 @@ class PlainRNNDataHandler:
             session_count += len(v)
         return session_count
 
+    def get_num_training_sessions(self):
+        return self.get_num_sessions(self.trainset)
+
     def get_num_batches(self, dataset):
         num_sessions = self.get_num_sessions(dataset)
         return math.ceil(num_sessions/self.batch_size)
@@ -141,16 +144,14 @@ class PlainRNNDataHandler:
     
     def add_timestamp_to_message(self, message):
         timestamp = str(datetime.datetime.now())
-        message = timestamp+'\n'
+        message = timestamp+'\n'+message
         return message
 
-    def log_test_stats(self, epoch_number, epoch_loss, recall, mrr, k):
+    def log_test_stats(self, epoch_number, epoch_loss, stats):
         timestamp = str(datetime.datetime.now())
         message = timestamp+'\n\tEpoch #: '+str(epoch_number)
-        message += '\n\t  Epoch loss: '+str(epoch_loss)
-        message += '\n\t  Recall@'+str(k)+': '+str(recall)
-        message += '\n\t  MRR@'+str(k)+': '+str(mrr)
-        message += '\n'
+        message += '\n\tEpoch loss: '+str(epoch_loss)+'\n'
+        message += stats
         logging.info(message)
 
     def log_config(self, config):
