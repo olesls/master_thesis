@@ -1,48 +1,62 @@
-# Code to train a intra-/inter-session RNN for prediction on the lastfm dataset
+# Code to train a plain RNN for prediction on the lastfm dataset
 
 import tensorflow as tf
 from tensorflow.contrib import layers
-from tensorflow.contrib import rnn  # will probably be moved to code in TF 1.1
+from tensorflow.contrib import rnn  # will probably be moved to code in TF 1.1. Keep it imported as rnn to make the rest of the code independent of this.
 import datetime
 import os
 import time
 import math
 import numpy as np
-from lastfm_utils_II_RNN import II_RNNDataHandler
+from lastfm_utils_ii_rnn import IIRNNDataHandler
+from test_util import Tester
 
-dataset_path = os.path.expanduser('~') + '/datasets/lastfm-dataset-1K/lastfm_4_train_test_split.pickle'
-epoch_file = './epoch_file.pickle'
-checkpoint_file = './checkpoints/plain-rnn-'
+reddit = "subreddit"
+lastfm = "lastfm"
+
+dataset = lastfm
+
+dataset_path = os.path.expanduser('~') + '/datasets/'+dataset+'/4_train_test_split.pickle'
+epoch_file = './epoch_file-iirnn-'+dataset+'.pickle'
+checkpoint_file = './checkpoints/ii-rnn-'+dataset+'-'
 checkpoint_file_ending = '.ckpt'
 date_now = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d')
-log_file = './testlog/'+str(date_now)+'-testing'
+log_file = './testlog/'+str(date_now)+'-testing.txt'
 
-
-# This might not work, might have to set the seed inside the training loop or something
-# TODO: Check if this works
 tf.set_random_seed(0)
 
-N_ITEMS      = -1       # number of items (size of 1-hot vector) (number of artists or songs in lastfm case)
-BATCHSIZE    = 50       #
-SHORTTERM_INTERNALSIZE = 1000     # size of internal vectors/states in the rnn
-LONGTERM_INTERNALSIZE = SHORTTERM_INTERNALSIZE  # need to be the same unless we add a layer inbetween.
+N_ITEMS      = -1       # number of items (size of 1-hot vector) #labels
+BATCHSIZE    = 100      #
+if dataset == reddit:
+    ST_INTERNALSIZE = 50
+    LT_INTERNALSIZE = ST_INTERNALSIZE
+elif dataset == lastfm:
+    ST_INTERNALSIZE = 100   # size of internal vectors/states in the rnn
+    LT_INTERNALSIZE = ST_INTERNALSIZE
 N_LAYERS     = 1        # number of layers in the rnn
 SEQLEN       = 20-1     # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
-EMBEDDING_SIZE = 1000
+EMBEDDING_SIZE = ST_INTERNALSIZE
 TOP_K = 20
 MAX_EPOCHS = 10
+MAX_SESSION_REPRESENTATIONS = 10
 
 learning_rate = 0.001   # fixed learning rate
 dropout_pkeep = 1.0     # no dropout
 
 # Load training data
-datahandler = II_RNNDataHandler(dataset_path, BATCHSIZE, log_file)
+datahandler = IIRNNDataHandler(dataset_path, BATCHSIZE, log_file, MAX_SESSION_REPRESENTATIONS, LT_INTERNALSIZE)
 N_ITEMS = datahandler.get_num_items()
+N_SESSIONS = datahandler.get_num_training_sessions()
 
-print("------------------------------------------------------------------------")
-print("CONFIG: N_ITEMS=", N_ITEMS, "BATCHSIZE=", BATCHSIZE, "INTERNALSIZE=", INTERNALSIZE,
-        "N_LAYERS=", N_LAYERS, "SEQLEN=", SEQLEN, "EMBEDDING_SIZE=", EMBEDDING_SIZE)
-print("------------------------------------------------------------------------")
+message = "------------------------------------------------------------------------\n"
+message += "DATASET: "+dataset+" MODEL: II-RNN"
+message += "\nCONFIG: N_ITEMS="+str(N_ITEMS)+" BATCHSIZE="+str(BATCHSIZE)
+message += "\nST_INTERNALSIZE="+str(ST_INTERNALSIZE)+" LT_INTERNALSIZE="+str(LT_INTERNALSIZE)
+message += "\nN_LAYERS="+str(N_LAYERS)+" SEQLEN="+str(SEQLEN)+" EMBEDDING_SIZE="+str(EMBEDDING_SIZE)
+message += "\nN_SESSIONS="+str(N_SESSIONS)+"\n"
+datahandler.log_config(message)
+print(message)
+
 
 ##
 ## The model
@@ -65,19 +79,20 @@ with tf.device(gpu[0]):
 
     lr = tf.placeholder(tf.float32, name='lr')              # learning rate
     pkeep = tf.placeholder(tf.float32, name='pkeep')        # dropout parameter
-    
-    X_lt = tf.placeholder(tf.float32, [None, LONGTERM_INTERNALSIZE], name='') # [ BATCHSIZE, LT_INTERNALSIZE]
+
+    X_lt = tf.placeholder(tf.float32, [None, None, LT_INTERNALSIZE], name='X_lt') #[BATCHSIZE, LT_INTERNALSIZE]
+    seq_len_lt = tf.placeholder(tf.int32, [None], name='lt_seqlen')
 
     # Longterm RNN
-    lt_cell = rnn.GRUCell(LONGTERM_INTERNALSIZE)
-    lt_rnn_outputs, lt_rnn_states = tf.nn.dynamic_rnn(lt_cell, X_lt, 
+    lt_cell = rnn.GRUCell(LT_INTERNALSIZE)
+    lt_rnn_outputs, lt_rnn_states = tf.nn.dynamic_rnn(lt_cell, X_lt,
             sequence_length=seq_len_lt, dtype=tf.float32)
 
     # Get the correct outputs (depends on session_lengths)
-    last_lt_rnn_output = tf.gather_nd(lt_rnn_outputs, tf.pack([tf.range(batchsize), seq_len_lt-1], axis=1))
+    last_lt_rnn_output = tf.gather_nd(lt_rnn_outputs, tf.stack([tf.range(batchsize), seq_len_lt-1], axis=1))
 
     # Shortterm RNN
-    onecell = rnn.GRUCell(SHORTTERM_INTERNALSIZE)
+    onecell = rnn.GRUCell(ST_INTERNALSIZE)
     dropcell = rnn.DropoutWrapper(onecell, input_keep_prob=pkeep)
     multicell = rnn.MultiRNNCell([dropcell]*N_LAYERS, state_is_tuple=False)
     multicell = rnn.DropoutWrapper(multicell, output_keep_prob=pkeep)
@@ -88,7 +103,7 @@ with tf.device(gpu[0]):
 
     # Apply softmax to the output
     # Flatten the RNN output first, to share weights across the unrolled time steps
-    Yflat = tf.reshape(Yr, [-1, INTERNALSIZE])         # [ BATCHSIZE x SEQLEN, INTERNALSIZE ]
+    Yflat = tf.reshape(Yr, [-1, ST_INTERNALSIZE])         # [ BATCHSIZE x SEQLEN, ST_INTERNALSIZE ]
     # Change from internal size (from RNNCell) to N_ITEMS size
     Ylogits = layers.linear(Yflat, N_ITEMS)                     # [ BATCHSIZE x SEQLEN, N_ITEMS ]
 
@@ -137,7 +152,7 @@ saver = tf.train.Saver(max_to_keep=1)
 
 
 # Initialization
-#istate = np.zeros([BATCHSIZE, INTERNALSIZE*N_LAYERS])    # initial zero input state
+# istate = np.zeros([BATCHSIZE, ST_INTERNALSIZE*N_LAYERS])    # initial zero input state
 init = tf.global_variables_initializer()
 config = tf.ConfigProto(allow_soft_placement=True)
 config.gpu_options.allow_growth = True      # be nice and don't use more memory than necessary
@@ -172,15 +187,19 @@ while epoch <= MAX_EPOCHS:
     print("Starting epoch #"+str(epoch))
     epoch_loss = 0
     
+    datahandler.reset_user_batch_data()
     for _batch_number in range(num_training_batches):
         batch_start_time = time.time()
 
-        xinput, targetvalues, sl = datahandler.get_next_train_batch()
+        xinput, targetvalues, sl, session_reps, sr_sl, user_list = datahandler.get_next_train_batch()
         
-        feed_dict = {X: xinput, Y_: targetvalues, lr: learning_rate, pkeep: dropout_pkeep, batchsize: len(xinput), 
-                seq_len: sl}
+        feed_dict = {X: xinput, Y_: targetvalues, X_lt: session_reps, 
+                seq_len_lt: sr_sl, lr: learning_rate, pkeep: dropout_pkeep, 
+                batchsize: len(xinput), seq_len: sl}
 
-        _, bl = sess.run([train_step, batchloss], feed_dict=feed_dict)
+        _, bl, final_H = sess.run([train_step, batchloss, H], feed_dict=feed_dict)
+
+        datahandler.store_user_session_representations(final_H, user_list)
     
         # save training data for Tensorboard
         #summary_writer.add_summary(smm, _batch_number)
@@ -192,7 +211,7 @@ while epoch <= MAX_EPOCHS:
             print(" | Batch loss:", bl, end='')
             eta = (batch_runtime*(num_training_batches-_batch_number))/60
             eta = "%.2f" % eta
-            print(" | ETR:", eta, "minutes.")
+            print(" | ETA:", eta, "minutes.")
 
     print("Epoch", epoch, "finished")
     print("|- Epoch loss:", epoch_loss)
@@ -205,47 +224,41 @@ while epoch <= MAX_EPOCHS:
 
     datahandler.store_current_epoch(epoch, epoch_file)
     
-
     ##
     ##  TESTING
     ##
     print("Starting testing")
     recall, mrr = 0.0, 0.0
     evaluation_count = 0
+    tester = Tester()
+    datahandler.reset_user_batch_data()
     for _ in range(num_test_batches):
-        print(_, "/", num_test_batches)
-        xinput, targetvalues, sl = datahandler.get_next_test_batch()
+        batch_start_time = time.time()
+        xinput, targetvalues, sl, session_reps, sr_sl, user_list = datahandler.get_next_test_batch()
 
         feed_dict = {X: xinput, pkeep: 1.0, batchsize: len(xinput), seq_len: sl}
         batch_predictions = sess.run([Y_prediction], feed_dict=feed_dict)
         batch_predictions = batch_predictions[0]
+        
+        # Evaluate predictions
+        tester.evaluate_batch(batch_predictions, targetvalues, sl)
 
-        for batch_index in range(len(batch_predictions)):
-            try:
-                predicted_sequence = batch_predictions[batch_index]
-                target_sequence = targetvalues[batch_index]
-            except Exception:
-                print("len(batch_predictions)", len(batch_predictions))
-                print("batch_index", batch_index)
+        # Print some stats during testing
+        batch_runtime = time.time() - batch_start_time
+        if _%100==0:
+            print("Batch number:", str(_+1), "/", str(num_test_batches), "| Batch time:", "%.2f" % batch_runtime, " seconds")
+            eta = (batch_runtime*(num_test_batches-_))/60
+            eta = "%.2f" % eta
+            print("ETA:", eta, "minutes.")
+            current_results = tester.get_stats()
+            print("Current evaluation:")
+            print(current_results)
 
-            for i in range(sl[batch_index]):
-                target_item = target_sequence[i]
-                k_predictions = predicted_sequence[i]
+    # Print final test stats for epoch
+    test_stats = tester.get_stats_and_reset()
+    print(test_stats)
 
-                if target_item in k_predictions:
-                    recall += 1
-                    rank = np.nonzero(k_predictions == target_item)[0][0]+1
-                    mrr += 1.0/rank
-
-                evaluation_count += 1
-    recall = recall/evaluation_count
-    mrr = mrr/evaluation_count
-
-    print("  Recall@"+str(TOP_K)+":", recall)
-    print("  MRR@"+str(TOP_K)+":", mrr)
-    print()
-
-    datahandler.log_test_stats(epoch, epoch_loss, recall, mrr, TOP_K)
+    datahandler.log_test_stats(epoch, epoch_loss, test_stats)
 
     datahandler.reset_batches()
     epoch += 1

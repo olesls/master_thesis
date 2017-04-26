@@ -49,7 +49,7 @@ N_ITEMS = datahandler.get_num_items()
 N_SESSIONS = datahandler.get_num_training_sessions()
 
 message = "------------------------------------------------------------------------\n"
-message += "DATASET: "+dataset
+message += "DATASET: "+dataset+" MODEL: plain RNN"
 message += "\nCONFIG: N_ITEMS="+str(N_ITEMS)+" BATCHSIZE="+str(BATCHSIZE)+" INTERNALSIZE="+str(INTERNALSIZE)
 message += "\nN_LAYERS="+str(N_LAYERS)+" SEQLEN="+str(SEQLEN)+" EMBEDDING_SIZE="+str(EMBEDDING_SIZE)
 message += "\nN_SESSIONS="+str(N_SESSIONS)+"\n"
