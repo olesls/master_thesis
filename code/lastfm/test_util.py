@@ -29,7 +29,6 @@ class Tester:
 
             for j in range(len(self.k)):
                 k = self.k[j]
-
                 if target_item in k_predictions[:k]:
                     self.recall[j] += 1
                     inv_rank = 1.0/self.get_rank(target_item, k_predictions[:k])

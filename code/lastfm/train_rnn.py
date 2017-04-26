@@ -14,7 +14,7 @@ from test_util import Tester
 reddit = "subreddit"
 lastfm = "lastfm"
 
-dataset = lastfm
+dataset = reddit
 
 dataset_path = os.path.expanduser('~') + '/datasets/'+dataset+'/4_train_test_split.pickle'
 epoch_file = './epoch_file'+dataset+'.pickle'

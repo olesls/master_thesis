@@ -123,7 +123,7 @@ class IIRNNDataHandler:
             session_batch.append(dataset[user][session_index])
             session_lengths.append(dataset_session_lengths[user][session_index])
             sess_rep_batch.append(self.user_session_representations[user])
-            sess_rep_lengths.append(self.num_user_session_representations[user])
+            sess_rep_lengths.append(max(self.num_user_session_representations[user], 1))
             self.user_next_session_to_retrieve[user] += 1
             if self.user_next_session_to_retrieve[user] >= len(dataset[user]):
                 # User have no more session, remove him from users_with_remaining_sessions
@@ -170,7 +170,7 @@ class IIRNNDataHandler:
     def store_user_session_representations(self, sessions_representations, user_list):
         for i in range(len(user_list)):
             user = user_list[i]
-            session_representation = session_representations[i]
+            session_representation = sessions_representations[i]
             self.user_session_representations[user].appendleft(session_representation)
             num_reps = self.num_user_session_representations[user]
             self.num_user_session_representations[user] = min(self.MAX_SESSION_REPRESENTATIONS, num_reps+1)

@@ -14,7 +14,7 @@ from test_util import Tester
 reddit = "subreddit"
 lastfm = "lastfm"
 
-dataset = lastfm
+dataset = reddit
 
 dataset_path = os.path.expanduser('~') + '/datasets/'+dataset+'/4_train_test_split.pickle'
 epoch_file = './epoch_file-iirnn-'+dataset+'.pickle'
@@ -188,10 +188,14 @@ while epoch <= MAX_EPOCHS:
     epoch_loss = 0
     
     datahandler.reset_user_batch_data()
-    for _batch_number in range(num_training_batches):
+    _batch_number = 0
+    xinput, targetvalues, sl, session_reps, sr_sl, user_list = datahandler.get_next_train_batch()
+
+    while len(xinput) > int(BATCHSIZE/2):
+        #for _batch_number in range(num_training_batches):
+        _batch_number += 1
         batch_start_time = time.time()
 
-        xinput, targetvalues, sl, session_reps, sr_sl, user_list = datahandler.get_next_train_batch()
         
         feed_dict = {X: xinput, Y_: targetvalues, X_lt: session_reps, 
                 seq_len_lt: sr_sl, lr: learning_rate, pkeep: dropout_pkeep, 
@@ -212,6 +216,8 @@ while epoch <= MAX_EPOCHS:
             eta = (batch_runtime*(num_training_batches-_batch_number))/60
             eta = "%.2f" % eta
             print(" | ETA:", eta, "minutes.")
+        
+        xinput, targetvalues, sl, session_reps, sr_sl, user_list = datahandler.get_next_train_batch()
 
     print("Epoch", epoch, "finished")
     print("|- Epoch loss:", epoch_loss)
@@ -232,13 +238,18 @@ while epoch <= MAX_EPOCHS:
     evaluation_count = 0
     tester = Tester()
     datahandler.reset_user_batch_data()
-    for _ in range(num_test_batches):
+    _ = 0
+    xinput, targetvalues, sl, session_reps, sr_sl, user_list = datahandler.get_next_test_batch()
+    while len(xinput) > int(BATCHSIZE/2):
+        #for _ in range(num_test_batches):
         batch_start_time = time.time()
-        xinput, targetvalues, sl, session_reps, sr_sl, user_list = datahandler.get_next_test_batch()
+        _ += 1
 
-        feed_dict = {X: xinput, pkeep: 1.0, batchsize: len(xinput), seq_len: sl}
-        batch_predictions = sess.run([Y_prediction], feed_dict=feed_dict)
-        batch_predictions = batch_predictions[0]
+        feed_dict = {X: xinput, pkeep: 1.0, batchsize: len(xinput), seq_len: sl,
+                X_lt: session_reps, seq_len_lt: sr_sl}
+
+        batch_predictions, final_H = sess.run([Y_prediction, H], feed_dict=feed_dict)
+        datahandler.store_user_session_representations(final_H, user_list)
         
         # Evaluate predictions
         tester.evaluate_batch(batch_predictions, targetvalues, sl)
@@ -254,11 +265,12 @@ while epoch <= MAX_EPOCHS:
             print("Current evaluation:")
             print(current_results)
 
+        xinput, targetvalues, sl, session_reps, sr_sl, user_list = datahandler.get_next_test_batch()
+
     # Print final test stats for epoch
     test_stats = tester.get_stats_and_reset()
     print(test_stats)
 
     datahandler.log_test_stats(epoch, epoch_loss, test_stats)
 
-    datahandler.reset_batches()
     epoch += 1
