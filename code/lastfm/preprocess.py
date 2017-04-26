@@ -8,9 +8,10 @@ import time
 runtime = time.time()
 
 reddit = "subreddit"
-lastfm = "lastfm-dataset-1K"
+lastfm = "lastfm"
 
-dataset = reddit
+#dataset = reddit
+dataset = lastfm
 
 home = os.path.expanduser('~')
 DATASET_DIR = home + '/datasets/'+dataset
@@ -44,16 +45,16 @@ def convert_timestamps_reddit():
     dataset_list = []
     with open(DATASET_FILE, 'rt', buffering=10000, encoding='utf8') as dataset:
         for line in dataset:
-             line = line.rstrip()
-             line = line.split(',')
-             if line[2] == 'utc':
-                 continue
-             user_id     = line[0]
-             subreddit   = line[1]
-             timestamp   = float(line[2])
-             dataset_list.append( [user_id, timestamp, subreddit] )
- 
-     save_pickle(dataset_list, DATASET_W_CONVERTED_TIMESTAMPS)
+            line = line.rstrip()
+            line = line.split(',')
+            if line[2] == 'utc':
+                continue
+            user_id     = line[0]
+            subreddit   = line[1]
+            timestamp   = float(line[2])
+            dataset_list.append( [user_id, timestamp, subreddit] )
+
+    save_pickle(dataset_list, DATASET_W_CONVERTED_TIMESTAMPS)
 
 def convert_timestamps_lastfm():
     dataset_list = []
@@ -107,9 +108,21 @@ def split_long_sessions(user_sessions):
     for k, v in user_sessions.items():
         user_sessions[k] = perform_session_splits(v)
 
+def collapse_session(session):
+    new_session = [session[0]]
+    for i in range(1, len(session)):
+        last_event = new_session[-1]
+        current_event = session[i]
+        if current_event[1] != last_event[1]:
+            new_session.append(current_event)
+
+    return new_session
+
+
 def collapse_repeating_items(user_sessions):
     for k, sessions in user_sessions.items():
-
+        for i in range(len(sessions)):
+            sessions[i] = collapse_session(sessions[i])
 
 
 ''' Splits sessions according to inactivity (time between two consecutive 
