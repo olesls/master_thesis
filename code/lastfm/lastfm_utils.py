@@ -31,7 +31,7 @@ class PlainRNNDataHandler:
 
         self.reset_user_batch_data()
 
-	# call before training and testing
+    # call before training and testing
     def reset_user_batch_data(self):
         # the index of the next session(event) to retrieve for a user
         self.user_next_session_to_retrieve = [0]*self.num_users
@@ -42,6 +42,9 @@ class PlainRNNDataHandler:
         for k, v in self.trainset.items():
             # everyone has at least one session
             self.users_with_remaining_sessions.append(k)
+
+    def get_N_highest_indexes(a,N):
+        return np.argsort(a)[::-1][:N]
 
     def add_unique_items_to_dict(self, items, dataset):
         for k, v in dataset.items():
@@ -77,7 +80,7 @@ class PlainRNNDataHandler:
     def get_num_test_batches(self):
         return self.get_num_batches(self.testset)
     
-	def get_next_batch(self, dataset, dataset_session_lengths):
+    def get_next_batch(self, dataset, dataset_session_lengths):
         session_batch = []
         session_lengths = []
         
@@ -88,7 +91,7 @@ class PlainRNNDataHandler:
             remaining_sessions[i] = len(dataset[user]) - self.user_next_session_to_retrieve[user]
         
         # index of users to get
-        user_list = IIRNNDataHandler.get_N_highest_indexes(remaining_sessions, self.batch_size)
+        user_list = PlainRNNDataHandler.get_N_highest_indexes(remaining_sessions, self.batch_size)
         for i in range(len(user_list)):
             user_list[i] = self.users_with_remaining_sessions[user_list[i]]
 
@@ -109,7 +112,7 @@ class PlainRNNDataHandler:
 
         return x, y, session_lengths
 
-	 def get_next_train_batch(self):
+    def get_next_train_batch(self):
         return self.get_next_batch(self.trainset, self.train_session_lengths)
 
     def get_next_test_batch(self):

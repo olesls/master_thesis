@@ -193,7 +193,7 @@ while epoch <= MAX_EPOCHS:
         batch_runtime = time.time() - batch_start_time
         epoch_loss += bl
         if _batch_number%100==0:
-            print("Batch number:", str(_batch_number+1), "/", str(num_training_batches), "| Batch time:", "%.2f" % batch_runtime, " seconds", end='')
+            print("Batch number:", str(_batch_number), "/", str(num_training_batches), "| Batch time:", "%.2f" % batch_runtime, " seconds", end='')
             print(" | Batch loss:", bl, end='')
             eta = (batch_runtime*(num_training_batches-_batch_number))/60
             eta = "%.2f" % eta
@@ -220,8 +220,8 @@ while epoch <= MAX_EPOCHS:
     evaluation_count = 0
     tester = Tester()
     datahandler.reset_user_batch_data()
-  	_batch_number = 0
-  	xinput, targetvalues, sl = datahandler.get_next_test_batch()
+    _batch_number = 0
+    xinput, targetvalues, sl = datahandler.get_next_test_batch()
     while len(xinput) > int(BATCHSIZE/2):
         batch_start_time = time.time()
         _batch_number += 1
@@ -237,7 +237,7 @@ while epoch <= MAX_EPOCHS:
         # Print some stats during testing
         batch_runtime = time.time() - batch_start_time
         if _batch_number%100==0:
-            print("Batch number:", str(_batch_number+1), "/", str(num_test_batches), "| Batch time:", "%.2f" % batch_runtime, " seconds")
+            print("Batch number:", str(_batch_number), "/", str(num_test_batches), "| Batch time:", "%.2f" % batch_runtime, " seconds")
             eta = (batch_runtime*(num_test_batches-_batch_number))/60
             eta = "%.2f" % eta
             print("ETA:", eta, "minutes.")
