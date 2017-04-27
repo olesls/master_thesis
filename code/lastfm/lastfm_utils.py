@@ -21,11 +21,6 @@ class PlainRNNDataHandler:
         self.train_session_lengths = dataset['train_session_lengths']
         self.test_session_lengths = dataset['test_session_lengths']
 
-        self.train_current_session_index = 0
-        self.train_current_user = 0
-        self.test_current_session_index = 0
-        self.test_current_user = 0
-        
         self.num_users = len(self.trainset)
         if len(self.trainset) != len(self.testset):
             raise Exception("""Testset and trainset have different 
@@ -33,6 +28,20 @@ class PlainRNNDataHandler:
 
         self.test_log = test_log
         logging.basicConfig(filename=test_log,level=logging.DEBUG)
+
+        self.reset_user_batch_data()
+
+	# call before training and testing
+    def reset_user_batch_data(self):
+        # the index of the next session(event) to retrieve for a user
+        self.user_next_session_to_retrieve = [0]*self.num_users
+        # list of users who have not been exhausted for sessions
+        self.users_with_remaining_sessions = []
+        # a list where we store the number of remaining sessions for each user. Updated for eatch batch fetch. But we don't want to create the object multiple times.
+        self.num_remaining_sessions_for_user = [0]*self.num_users
+        for k, v in self.trainset.items():
+            # everyone has at least one session
+            self.users_with_remaining_sessions.append(k)
 
     def add_unique_items_to_dict(self, items, dataset):
         for k, v in dataset.items():
@@ -68,70 +77,43 @@ class PlainRNNDataHandler:
     def get_num_test_batches(self):
         return self.get_num_batches(self.testset)
     
-    def get_subbatch(self, dataset, dataset_session_lengths, current_user, current_index, max_size):
-        num_remaining_sessions_for_user = len(dataset[current_user]) - current_index
-        b, sl, cu, ci = 0, 0, 0, 0
-        if num_remaining_sessions_for_user < max_size:
-            # can use the whole of the remaining sessions for current user
-            b  = dataset[current_user][current_index:]
-            sl = dataset_session_lengths[current_user][current_index:]
-            cu = current_user+1
-            ci = 0
-        else:
-            # can only use up to max_size of remaining sessions for current user
-            end_index = current_index + max_size
-            b  = dataset[current_user][current_index:end_index]
-            sl = dataset_session_lengths[current_user][current_index:end_index]
-            cu = current_user
-            ci = end_index
-        
-        return b, sl, cu, ci
-
-    def process_batch(self, batch):
-        batch = [[event[1] for event in session] for session in batch]
-        
-        x = [session[:-1] for session in batch]
-        y = [session[1:] for session in batch]
-
-        return x, y
-
-    def get_next_batch(self, dataset, dataset_session_lengths, current_user, current_index):
-        batch = []
+	def get_next_batch(self, dataset, dataset_session_lengths):
+        session_batch = []
         session_lengths = []
-
-        while len(batch) < self.batch_size and current_user < self.num_users:
-            num_remaining_sessions = self.batch_size - len(batch)
-            sessions, sl, current_user, current_index = self.get_subbatch(dataset, 
-                    dataset_session_lengths, current_user, current_index, num_remaining_sessions)
-
-            batch += sessions
-            session_lengths += sl
         
-        x, y = self.process_batch(batch)
+        # Decide which users to take sessions from. First count the number of remaining sessions
+        remaining_sessions = [0]*len(self.users_with_remaining_sessions)
+        for i in range(len(self.users_with_remaining_sessions)):
+            user = self.users_with_remaining_sessions[i]
+            remaining_sessions[i] = len(dataset[user]) - self.user_next_session_to_retrieve[user]
+        
+        # index of users to get
+        user_list = IIRNNDataHandler.get_N_highest_indexes(remaining_sessions, self.batch_size)
+        for i in range(len(user_list)):
+            user_list[i] = self.users_with_remaining_sessions[user_list[i]]
 
-        return x, y, session_lengths, current_user, current_index
+        # For each user -> get the next session, and check if we should remove 
+        # him from the list of users with remaining sessions
+        for user in user_list:
+            session_index = self.user_next_session_to_retrieve[user]
+            session_batch.append(dataset[user][session_index])
+            session_lengths.append(dataset_session_lengths[user][session_index])
+            self.user_next_session_to_retrieve[user] += 1
+            if self.user_next_session_to_retrieve[user] >= len(dataset[user]):
+                # User have no more session, remove him from users_with_remaining_sessions
+                self.users_with_remaining_sessions.remove(user)
 
-    def get_next_train_batch(self):
-        x, y, sl, cu, ci = self.get_next_batch(self.trainset, self.train_session_lengths, 
-                self.train_current_user, self.train_current_session_index)
-        self.train_current_user = cu
-        self.train_current_session_index = ci
+        session_batch = [[event[1] for event in session] for session in session_batch]
+        x = [session[:-1] for session in session_batch]
+        y = [session[1:] for session in session_batch]
 
-        return x, y, sl
+        return x, y, session_lengths
+
+	 def get_next_train_batch(self):
+        return self.get_next_batch(self.trainset, self.train_session_lengths)
 
     def get_next_test_batch(self):
-        x, y, sl, cu, ci = self.get_next_batch(self.testset, self.test_session_lengths, 
-                self.test_current_user, self.test_current_session_index)
-        self.test_current_user = cu
-        self.test_current_session_index = ci
-
-        return x, y, sl
-
-    def reset_batches(self):
-        self.train_current_session_index = 0
-        self.test_current_session_index = 0
-        self.train_current_user = 0
-        self.test_current_user = 0
+        return self.get_next_batch(self.testset, self.test_session_lengths)
 
     def get_latest_epoch(self, epoch_file):
         if not os.path.isfile(epoch_file):

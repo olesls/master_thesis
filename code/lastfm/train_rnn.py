@@ -174,10 +174,13 @@ while epoch <= MAX_EPOCHS:
     print("Starting epoch #"+str(epoch))
     epoch_loss = 0
 
-    for _batch_number in range(num_training_batches):
+    datahandler.reset_user_batch_data()
+    _batch_number = 0
+    xinput, targetvalues, sl = datahandler.get_next_train_batch()
+    
+    while len(xinput) > int(BATCHSIZE/2):
+        _batch_number += 1
         batch_start_time = time.time()
-
-        xinput, targetvalues, sl = datahandler.get_next_train_batch()
         
         feed_dict = {X: xinput, Y_: targetvalues, lr: learning_rate, pkeep: 
                 dropout_pkeep, batchsize: len(xinput), seq_len: sl}
@@ -195,6 +198,8 @@ while epoch <= MAX_EPOCHS:
             eta = (batch_runtime*(num_training_batches-_batch_number))/60
             eta = "%.2f" % eta
             print(" | ETA:", eta, "minutes.")
+        
+        xinput, targetvalues, sl = datahandler.get_next_train_batch()
 
     print("Epoch", epoch, "finished")
     print("|- Epoch loss:", epoch_loss)
@@ -214,11 +219,15 @@ while epoch <= MAX_EPOCHS:
     recall, mrr = 0.0, 0.0
     evaluation_count = 0
     tester = Tester()
-    for _ in range(num_test_batches):
+    datahandler.reset_user_batch_data()
+  	_batch_number = 0
+  	xinput, targetvalues, sl = datahandler.get_next_test_batch()
+    while len(xinput) > int(BATCHSIZE/2):
         batch_start_time = time.time()
-        xinput, targetvalues, sl = datahandler.get_next_test_batch()
+        _batch_number += 1
 
         feed_dict = {X: xinput, pkeep: 1.0, batchsize: len(xinput), seq_len: sl}
+        
         batch_predictions = sess.run([Y_prediction], feed_dict=feed_dict)
         batch_predictions = batch_predictions[0]
         
@@ -227,14 +236,16 @@ while epoch <= MAX_EPOCHS:
 
         # Print some stats during testing
         batch_runtime = time.time() - batch_start_time
-        if _%100==0:
-            print("Batch number:", str(_+1), "/", str(num_test_batches), "| Batch time:", "%.2f" % batch_runtime, " seconds")
-            eta = (batch_runtime*(num_test_batches-_))/60
+        if _batch_number%100==0:
+            print("Batch number:", str(_batch_number+1), "/", str(num_test_batches), "| Batch time:", "%.2f" % batch_runtime, " seconds")
+            eta = (batch_runtime*(num_test_batches-_batch_number))/60
             eta = "%.2f" % eta
             print("ETA:", eta, "minutes.")
             current_results = tester.get_stats()
             print("Current evaluation:")
             print(current_results)
+        
+        xinput, targetvalues, sl = datahandler.get_next_test_batch()
 
     # Print final test stats for epoch
     test_stats = tester.get_stats_and_reset()
@@ -242,5 +253,4 @@ while epoch <= MAX_EPOCHS:
 
     datahandler.log_test_stats(epoch, epoch_loss, test_stats)
 
-    datahandler.reset_batches()
     epoch += 1

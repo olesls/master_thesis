@@ -192,11 +192,9 @@ while epoch <= MAX_EPOCHS:
     xinput, targetvalues, sl, session_reps, sr_sl, user_list = datahandler.get_next_train_batch()
 
     while len(xinput) > int(BATCHSIZE/2):
-        #for _batch_number in range(num_training_batches):
         _batch_number += 1
         batch_start_time = time.time()
 
-        
         feed_dict = {X: xinput, Y_: targetvalues, X_lt: session_reps, 
                 seq_len_lt: sr_sl, lr: learning_rate, pkeep: dropout_pkeep, 
                 batchsize: len(xinput), seq_len: sl}
@@ -238,12 +236,11 @@ while epoch <= MAX_EPOCHS:
     evaluation_count = 0
     tester = Tester()
     datahandler.reset_user_batch_data()
-    _ = 0
+	_batch_number = 0
     xinput, targetvalues, sl, session_reps, sr_sl, user_list = datahandler.get_next_test_batch()
     while len(xinput) > int(BATCHSIZE/2):
-        #for _ in range(num_test_batches):
         batch_start_time = time.time()
-        _ += 1
+        _batch_number += 1
 
         feed_dict = {X: xinput, pkeep: 1.0, batchsize: len(xinput), seq_len: sl,
                 X_lt: session_reps, seq_len_lt: sr_sl}
@@ -256,9 +253,9 @@ while epoch <= MAX_EPOCHS:
 
         # Print some stats during testing
         batch_runtime = time.time() - batch_start_time
-        if _%100==0:
-            print("Batch number:", str(_+1), "/", str(num_test_batches), "| Batch time:", "%.2f" % batch_runtime, " seconds")
-            eta = (batch_runtime*(num_test_batches-_))/60
+        if _batch_number%100==0:
+            print("Batch number:", str(_batch_number+1), "/", str(num_test_batches), "| Batch time:", "%.2f" % batch_runtime, " seconds")
+            eta = (batch_runtime*(num_test_batches-_batch_number))/60
             eta = "%.2f" % eta
             print("ETA:", eta, "minutes.")
             current_results = tester.get_stats()
