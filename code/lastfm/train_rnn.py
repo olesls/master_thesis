@@ -17,7 +17,7 @@ lastfm = "lastfm"
 dataset = reddit
 
 dataset_path = os.path.expanduser('~') + '/datasets/'+dataset+'/4_train_test_split.pickle'
-epoch_file = './epoch_file'+dataset+'.pickle'
+epoch_file = './epoch_file-simple-rnn-'+dataset+'.pickle'
 checkpoint_file = './checkpoints/plain-rnn-'+dataset+'-'
 checkpoint_file_ending = '.ckpt'
 date_now = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d')
