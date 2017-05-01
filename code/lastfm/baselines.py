@@ -44,45 +44,48 @@ def most_recent_sequence_predicions(sequence, sequence_length):
 
 def most_recent():
     log_config("most_recent")
-    datahandler.reset_batches()
+    datahandler.reset_user_batch_data()
     tester = Tester()
-    for batch_number in range(num_test_batches):
-        x, y, sl = datahandler.get_next_test_batch()
+    x, y, sl = datahandler.get_next_test_batch()
+    while len(x) > int(BATCHSIZE/2):
         prediction_batch = []
 
         for i in range(len(x)):
             prediction_batch.append(most_recent_sequence_predicions(x[i], sl[i]))
 
         tester.evaluate_batch(prediction_batch, y, sl)
+        x, y, sl = datahandler.get_next_test_batch()
 
-    test_stats = tester.get_stats_and_reset()
+    test_stats, _1, _2 = tester.get_stats_and_reset()
     print(test_stats)
     datahandler.log_test_stats(0, 0, test_stats)
 
 
 def most_popular():
     log_config("most_popular")
-    datahandler.reset_batches()
+    datahandler.reset_user_batch_data()
     popularity_count = [0]*(num_items+1)
     tester = Tester()
 
     # Training
-    for _ in range(num_train_batches):
-        x, y, sl = datahandler.get_next_train_batch()
+    x, y, sl = datahandler.get_next_train_batch()
+    while len(x) > int(BATCHSIZE/2):
         for i in range(len(x)):
             sequence_length = sl[i]+1
             items = x[i][:sequence_length]
             
             for item in items:
                 popularity_count[item] += 1
+        x, y, sl = datahandler.get_next_train_batch()
     
     top_k = sorted(range(len(popularity_count)), key=lambda i:popularity_count[i])
     top_k = top_k[-num_predictions:]
     top_k = list(reversed(top_k))
 
     # Testing
-    for _ in range(num_test_batches):
-        x, y, sl = datahandler.get_next_test_batch()
+    datahandler.reset_user_batch_data()
+    x, y, sl = datahandler.get_next_test_batch()
+    while len(x) > int(BATCHSIZE/2):
         prediction_batch = []
 
         for i in range(len(x)):
@@ -92,12 +95,62 @@ def most_popular():
             prediction_batch.append(sequence_predictions)
 
         tester.evaluate_batch(prediction_batch, y, sl)
+        x, y, sl = datahandler.get_next_test_batch()
     
-    test_stats = tester.get_stats_and_reset()
+    test_stats, _1, _2 = tester.get_stats_and_reset()
     print(test_stats)
     datahandler.log_test_stats(0, 0, test_stats)
-    
 
-most_recent()
-most_popular()
+def knn():
+    log_config("kNN")
+    datahandler.reset_user_batch_data()
+    cooccurrances = []
+    for i in range(num_items):
+        cooccurrances.append([0]*num_items)
 
+    # Training
+    x, y, sl = datahandler.get_next_train_batch()
+    while len(x) > int(BATCHSIZE/2):
+        print("train", num_train_batches)
+        num_train_batches -= 1
+        for b in range(len(x)):
+            sequence_length = sl[b]+1
+            items = x[b][:sequence_length]
+
+            for i in range(len(items)-1):
+                for j in range(i+1, len(a)):
+                    cooccurrances[items[i]][items[j]] += 1
+
+        x, y, sl = datahandler.get_next_train_batch()
+
+    preds = [None]*num_items
+    for i in range(num_items):
+        preds[i] = sorted(range(len(cooccurrances[i])), key=lambda j:cooccurrances[i][j])
+        preds[i] = preds[i][-num_predictions:]
+        preds[i] = list(reversed(preds[i]))
+
+    #Testing
+    tester = Tester()
+    datahandler.reset_user_batch_data()
+    x, y, sl = datahandler.get_next_test_batch()
+    while len(x) > int(BATCHSIZE/2):
+        prediction_batch = []
+
+        for b in range(len(x)):
+            sequence_predictions = []
+            for i in range(sl[b]):
+                current_item = x[b][i]
+                sequence_predictions.append(preds[current_item])
+            prediction_batch.append(sequence_predictions)
+        tester.evaluate_batch(prediction_batch, y, sl)
+        x, y, sl = datahandler.get_next_test_batch()
+
+    test_stats, _1, _2 = tester.get_stats_and_reset()
+    print(test_stats)
+    datahandler.log_test_stats(0, 0, test_stats)
+
+
+
+#most_recent()
+#most_popular()
+knn()
