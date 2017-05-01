@@ -14,7 +14,7 @@ from test_util import Tester
 reddit = "subreddit"
 lastfm = "lastfm"
 
-dataset = reddit
+dataset = subreddit
 
 dataset_path = os.path.expanduser('~') + '/datasets/'+dataset+'/4_train_test_split.pickle'
 epoch_file = './epoch_file-iirnn-'+dataset+'.pickle'
@@ -37,7 +37,7 @@ N_LAYERS     = 1        # number of layers in the rnn
 SEQLEN       = 20-1     # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
 EMBEDDING_SIZE = ST_INTERNALSIZE
 TOP_K = 20
-MAX_EPOCHS = 10
+MAX_EPOCHS = 100
 MAX_SESSION_REPRESENTATIONS = 10
 
 learning_rate = 0.001   # fixed learning rate
@@ -181,6 +181,10 @@ else:
 epoch += 1
 print()
 
+
+best_recall5 = -1
+best_recall20 = -1
+
 num_training_batches = datahandler.get_num_training_batches()
 num_test_batches = datahandler.get_num_test_batches()
 while epoch <= MAX_EPOCHS:
@@ -220,14 +224,6 @@ while epoch <= MAX_EPOCHS:
     print("Epoch", epoch, "finished")
     print("|- Epoch loss:", epoch_loss)
 
-    # Save the model
-    print("Saving model.")
-    save_file = checkpoint_file + str(epoch) + checkpoint_file_ending
-    save_path = saver.save(sess, save_file)
-    print("|- Model saved in file:", save_path)
-
-    datahandler.store_current_epoch(epoch, epoch_file)
-    
     ##
     ##  TESTING
     ##
@@ -265,8 +261,21 @@ while epoch <= MAX_EPOCHS:
         xinput, targetvalues, sl, session_reps, sr_sl, user_list = datahandler.get_next_test_batch()
 
     # Print final test stats for epoch
-    test_stats = tester.get_stats_and_reset()
+    test_stats, current_recall5, current_recall20 = tester.get_stats_and_reset()
     print(test_stats)
+    
+    if current_recall5 > best_recall5 or current_recall20 > best_recall20:
+        # Save the model
+        print("Saving model.")
+        save_file = checkpoint_file + str(epoch) + checkpoint_file_ending
+        save_path = saver.save(sess, save_file)
+        print("|- Model saved in file:", save_path)
+
+        datahandler.store_current_epoch(epoch, epoch_file)
+
+        best_recall5 = current_recall5
+        best_recall20 = current_recall20
+    
 
     datahandler.log_test_stats(epoch, epoch_loss, test_stats)
 

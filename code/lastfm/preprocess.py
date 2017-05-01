@@ -24,7 +24,7 @@ DATASET_TRAIN_TEST_SPLIT = DATASET_DIR + '/4_train_test_split.pickle'
 if dataset == reddit:
     SESSION_TIMEDELTA = 60*60 # 1 hour
 elif dataset == lastfm:
-    SESSION_TIMEDELTA = 60*10 # 10 minutes
+    SESSION_TIMEDELTA = 60*30 # 1 hours
 
 MAX_SESSION_LENGTH = 20     # maximum number of events in a session
 MAX_SESSION_LENGTH_PRE_SPLIT = MAX_SESSION_LENGTH * 2

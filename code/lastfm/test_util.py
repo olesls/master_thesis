@@ -56,8 +56,11 @@ class Tester:
 
             message += "\tRecall@"+str(k)+" =\t"+str(recall_k)+"\n"
             message += "\tMRR@"+str(k)+" =\t"+str(mrr_k)+"\n"
+        
+        recall5 = self.recall[0]/self.evaluation_count
+        recall20 = self.recall[2]/self.evaluation_count
 
-        return message
+        return message, recall5, recall20
 
 
     def get_stats_and_reset(self):
