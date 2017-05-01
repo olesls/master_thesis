@@ -10,7 +10,7 @@ from test_util import Tester
 reddit = "subreddit"
 lastfm = "lastfm"
 
-dataset = lastfm
+dataset = reddit
 
 dataset_path = os.path.expanduser('~') + '/datasets/'+dataset+'/4_train_test_split.pickle'
 
@@ -102,6 +102,7 @@ def most_popular():
     datahandler.log_test_stats(0, 0, test_stats)
 
 def knn():
+    global num_train_batches
     log_config("kNN")
     datahandler.reset_user_batch_data()
     cooccurrances = []
@@ -118,7 +119,7 @@ def knn():
             items = x[b][:sequence_length]
 
             for i in range(len(items)-1):
-                for j in range(i+1, len(a)):
+                for j in range(i+1, len(items)):
                     cooccurrances[items[i]][items[j]] += 1
 
         x, y, sl = datahandler.get_next_train_batch()
