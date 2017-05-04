@@ -8,7 +8,7 @@ import os
 import time
 import math
 import numpy as np
-from lastfm_utils import PlainRNNDataHandler
+from lastfm_utils_ii_rnn import IIRNNDataHandler
 from test_util import Tester
 
 reddit = "subreddit"
@@ -17,43 +17,48 @@ lastfm = "lastfm"
 dataset = reddit
 
 dataset_path = os.path.expanduser('~') + '/datasets/'+dataset+'/4_train_test_split.pickle'
-epoch_file = './epoch_file-simple-rnn-'+dataset+'.pickle'
-checkpoint_file = './checkpoints/plain-rnn-'+dataset+'-'
+epoch_file = './epoch_file-iirnn-tempdist'+dataset+'.pickle'
+checkpoint_file = './checkpoints/iirnn-tempdist-'+dataset+'-'
 checkpoint_file_ending = '.ckpt'
 date_now = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d')
-log_file = './testlog/'+str(date_now)+'-testing-plain-rnn.txt'
+log_file = './testlog/'+str(date_now)+'-testing-iirnn-tempdist.txt'
 
-
-# This might not work, might have to set the seed inside the training loop or something
-# TODO: Check if this works
 seed = 0
 tf.set_random_seed(seed)
 
+HOUR = 60*60
+TIMEBUCKETS = [2*HOUR, 4*HOUR, 8*HOUR, 16*HOUR, 32*HOUR, 64*HOUR, 128*HOUR]
 N_ITEMS      = -1       # number of items (size of 1-hot vector) #labels
 BATCHSIZE    = 100      #
 if dataset == reddit:
-    INTERNALSIZE = 50
+    ST_INTERNALSIZE = 50
+    LT_INTERNALSIZE = ST_INTERNALSIZE+(len(TIMEBUCKETS)+1)
 elif dataset == lastfm:
-    INTERNALSIZE = 100     # size of internal vectors/states in the rnn
+    ST_INTERNALSIZE = 100   # size of internal vectors/states in the rnn
+    LT_INTERNALSIZE = ST_INTERNALSIZE+(len(TIMEBUCKETS)+1)
 N_LAYERS     = 1        # number of layers in the rnn
 SEQLEN       = 20-1     # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
-EMBEDDING_SIZE = INTERNALSIZE
+EMBEDDING_SIZE = ST_INTERNALSIZE
 TOP_K = 20
 MAX_EPOCHS = 100
+MAX_SESSION_REPRESENTATIONS = 10
 
 learning_rate = 0.001   # fixed learning rate
 dropout_pkeep = 1.0     # no dropout
 
 # Load training data
-datahandler = PlainRNNDataHandler(dataset_path, BATCHSIZE, log_file)
+datahandler = IIRNNDataHandler(dataset_path, BATCHSIZE, log_file, 
+        MAX_SESSION_REPRESENTATIONS, LT_INTERNALSIZE, TIMEBUCKETS)
 N_ITEMS = datahandler.get_num_items()
 N_SESSIONS = datahandler.get_num_training_sessions()
 
 message = "------------------------------------------------------------------------\n"
-message += "DATASET: "+dataset+" MODEL: plain RNN"
-message += "\nCONFIG: N_ITEMS="+str(N_ITEMS)+" BATCHSIZE="+str(BATCHSIZE)+" INTERNALSIZE="+str(INTERNALSIZE)
+message += "DATASET: "+dataset+" MODEL: II-RNN"
+message += "\nCONFIG: N_ITEMS="+str(N_ITEMS)+" BATCHSIZE="+str(BATCHSIZE)
+message += "\nST_INTERNALSIZE="+str(ST_INTERNALSIZE)+" LT_INTERNALSIZE="+str(LT_INTERNALSIZE)
 message += "\nN_LAYERS="+str(N_LAYERS)+" SEQLEN="+str(SEQLEN)+" EMBEDDING_SIZE="+str(EMBEDDING_SIZE)
-message += "\nN_SESSIONS="+str(N_SESSIONS)+" SEED="+str(seed)+"\n"
+message += "\nN_SESSIONS="+str(N_SESSIONS)+" SEED="+str(seed)
+message += "\nMAX_SESSION_REPRESENTATIONS="+str(MAX_SESSION_REPRESENTATIONS)
 datahandler.log_config(message)
 print(message)
 
@@ -73,25 +78,43 @@ with tf.device(cpu[0]):
     W_embed = tf.Variable(tf.random_uniform([N_ITEMS, EMBEDDING_SIZE], -1.0, 1.0), name='embeddings')
     X_embed = tf.nn.embedding_lookup(W_embed, X)
 
-with tf.device(gpu[1]):
+with tf.device(gpu[0]):
     seq_len = tf.placeholder(tf.int32, [None], name='seqlen')
     batchsize = tf.placeholder(tf.int32, name='batchsize')
 
     lr = tf.placeholder(tf.float32, name='lr')              # learning rate
     pkeep = tf.placeholder(tf.float32, name='pkeep')        # dropout parameter
 
-    # RNN
-    onecell = rnn.GRUCell(INTERNALSIZE)
+    X_lt = tf.placeholder(tf.float32, [None, None, LT_INTERNALSIZE], name='X_lt') #[BATCHSIZE, LT_INTERNALSIZE]
+    seq_len_lt = tf.placeholder(tf.int32, [None], name='lt_seqlen')
+    X_time_vec = tf.placeholder(tf.float32, [None, len(TIMEBUCKETS)+1])
+
+    # Longterm RNN
+    lt_cell = rnn.GRUCell(LT_INTERNALSIZE)
+    lt_rnn_outputs, lt_rnn_states = tf.nn.dynamic_rnn(lt_cell, X_lt,
+            sequence_length=seq_len_lt, dtype=tf.float32)
+
+    # Get the correct outputs (depends on session_lengths)
+    last_lt_rnn_output = tf.gather_nd(lt_rnn_outputs, tf.stack([tf.range(batchsize), seq_len_lt-1], axis=1)) #[BATCHSIZE,LT_INTERNALSIZE]
+    last_lt_rnn_output_w_time = tf.concat([last_lt_rnn_output, X_time_vec], 1)
+
+    st_rnn_input = layers.linear(last_lt_rnn_output_w_time, ST_INTERNALSIZE) #[BATCHSIZExLT_SEQLEN,ST_INTERNALSIZE]
+
+    # Shortterm RNN
+    onecell = rnn.GRUCell(ST_INTERNALSIZE)
     dropcell = rnn.DropoutWrapper(onecell, input_keep_prob=pkeep)
     multicell = rnn.MultiRNNCell([dropcell]*N_LAYERS, state_is_tuple=False)
     multicell = rnn.DropoutWrapper(multicell, output_keep_prob=pkeep)
-    Yr, H = tf.nn.dynamic_rnn(multicell, X_embed, sequence_length=seq_len, dtype=tf.float32)
+    Yr, H = tf.nn.dynamic_rnn(multicell, X_embed, 
+            sequence_length=seq_len, dtype=tf.float32, initial_state=st_rnn_input)
 
     H = tf.identity(H, name='H') # just to give it a name
+    
+    H_time_padded = tf.concat([H, X_time_vec], 1)
 
     # Apply softmax to the output
     # Flatten the RNN output first, to share weights across the unrolled time steps
-    Yflat = tf.reshape(Yr, [-1, INTERNALSIZE])         # [ BATCHSIZE x SEQLEN, INTERNALSIZE ]
+    Yflat = tf.reshape(Yr, [-1, ST_INTERNALSIZE])         # [ BATCHSIZE x SEQLEN, ST_INTERNALSIZE ]
     # Change from internal size (from RNNCell) to N_ITEMS size
     Ylogits = layers.linear(Yflat, N_ITEMS)                     # [ BATCHSIZE x SEQLEN, N_ITEMS ]
 
@@ -140,7 +163,7 @@ saver = tf.train.Saver(max_to_keep=1)
 
 
 # Initialization
-# istate = np.zeros([BATCHSIZE, INTERNALSIZE*N_LAYERS])    # initial zero input state
+# istate = np.zeros([BATCHSIZE, ST_INTERNALSIZE*N_LAYERS])    # initial zero input state
 init = tf.global_variables_initializer()
 config = tf.ConfigProto(allow_soft_placement=True)
 config.gpu_options.allow_growth = True      # be nice and don't use more memory than necessary
@@ -169,6 +192,7 @@ else:
 epoch += 1
 print()
 
+
 best_recall5 = -1
 best_recall20 = -1
 
@@ -177,19 +201,22 @@ num_test_batches = datahandler.get_num_test_batches()
 while epoch <= MAX_EPOCHS:
     print("Starting epoch #"+str(epoch))
     epoch_loss = 0
-
+    
     datahandler.reset_user_batch_data()
     _batch_number = 0
-    xinput, targetvalues, sl = datahandler.get_next_train_batch()
-    
+    xinput, targetvalues, sl, session_reps, sr_sl, user_list, temporal_diff = datahandler.get_next_train_batch()
+
     while len(xinput) > int(BATCHSIZE/2):
         _batch_number += 1
         batch_start_time = time.time()
-        
-        feed_dict = {X: xinput, Y_: targetvalues, lr: learning_rate, pkeep: 
-                dropout_pkeep, batchsize: len(xinput), seq_len: sl}
 
-        _, bl = sess.run([train_step, batchloss], feed_dict=feed_dict)
+        feed_dict = {X: xinput, Y_: targetvalues, X_lt: session_reps, 
+                seq_len_lt: sr_sl, lr: learning_rate, pkeep: dropout_pkeep, 
+                batchsize: len(xinput), seq_len: sl, X_time_vec: temporal_diff}
+
+        _, bl, final_H = sess.run([train_step, batchloss, H_time_padded], feed_dict=feed_dict)
+
+        datahandler.store_user_session_representations(final_H, user_list)
     
         # save training data for Tensorboard
         #summary_writer.add_summary(smm, _batch_number)
@@ -203,12 +230,11 @@ while epoch <= MAX_EPOCHS:
             eta = "%.2f" % eta
             print(" | ETA:", eta, "minutes.")
         
-        xinput, targetvalues, sl = datahandler.get_next_train_batch()
+        xinput, targetvalues, sl, session_reps, sr_sl, user_list, temporal_diff = datahandler.get_next_train_batch()
 
     print("Epoch", epoch, "finished")
     print("|- Epoch loss:", epoch_loss)
 
-    
     ##
     ##  TESTING
     ##
@@ -218,15 +244,16 @@ while epoch <= MAX_EPOCHS:
     tester = Tester()
     datahandler.reset_user_batch_data()
     _batch_number = 0
-    xinput, targetvalues, sl = datahandler.get_next_test_batch()
+    xinput, targetvalues, sl, session_reps, sr_sl, user_list, temporal_diff = datahandler.get_next_test_batch()
     while len(xinput) > int(BATCHSIZE/2):
         batch_start_time = time.time()
         _batch_number += 1
 
-        feed_dict = {X: xinput, pkeep: 1.0, batchsize: len(xinput), seq_len: sl}
-        
-        batch_predictions = sess.run([Y_prediction], feed_dict=feed_dict)
-        batch_predictions = batch_predictions[0]
+        feed_dict = {X: xinput, pkeep: 1.0, batchsize: len(xinput), seq_len: sl,
+                X_lt: session_reps, seq_len_lt: sr_sl, X_time_vec: temporal_diff}
+
+        batch_predictions, final_H = sess.run([Y_prediction, H_time_padded], feed_dict=feed_dict)
+        datahandler.store_user_session_representations(final_H, user_list)
         
         # Evaluate predictions
         tester.evaluate_batch(batch_predictions, targetvalues, sl)
@@ -241,8 +268,8 @@ while epoch <= MAX_EPOCHS:
             current_results = tester.get_stats()
             print("Current evaluation:")
             print(current_results)
-        
-        xinput, targetvalues, sl = datahandler.get_next_test_batch()
+
+        xinput, targetvalues, sl, session_reps, sr_sl, user_list, temporal_diff = datahandler.get_next_test_batch()
 
     # Print final test stats for epoch
     test_stats, current_recall5, current_recall20 = tester.get_stats_and_reset()
@@ -255,10 +282,12 @@ while epoch <= MAX_EPOCHS:
         save_path = saver.save(sess, save_file)
         print("|- Model saved in file:", save_path)
 
+        datahandler.store_current_epoch(epoch, epoch_file)
+
         best_recall5 = current_recall5
         best_recall20 = current_recall20
+    
 
-    datahandler.store_current_epoch(epoch, epoch_file)
     datahandler.log_test_stats(epoch, epoch_loss, test_stats)
 
     epoch += 1

@@ -26,16 +26,14 @@ log_file = './testlog/'+str(date_now)+'-testing-ii-rnn.txt'
 seed = 0
 tf.set_random_seed(seed)
 
-HOUR = 60*60
-TIMEBUCKETS = [2*HOUR, 4*HOUR, 8*HOUR, 16*HOUR, 32*HOUR, 64*HOUR, 128*HOUR]
 N_ITEMS      = -1       # number of items (size of 1-hot vector) #labels
 BATCHSIZE    = 100      #
 if dataset == reddit:
     ST_INTERNALSIZE = 50
-    LT_INTERNALSIZE = ST_INTERNALSIZE+(len(TIMEBUCKETS)+1)
+    LT_INTERNALSIZE = ST_INTERNALSIZE
 elif dataset == lastfm:
     ST_INTERNALSIZE = 100   # size of internal vectors/states in the rnn
-    LT_INTERNALSIZE = ST_INTERNALSIZE+(len(TIMEBUCKETS)+1)
+    LT_INTERNALSIZE = ST_INTERNALSIZE
 N_LAYERS     = 1        # number of layers in the rnn
 SEQLEN       = 20-1     # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
 EMBEDDING_SIZE = ST_INTERNALSIZE
@@ -48,7 +46,7 @@ dropout_pkeep = 1.0     # no dropout
 
 # Load training data
 datahandler = IIRNNDataHandler(dataset_path, BATCHSIZE, log_file, 
-        MAX_SESSION_REPRESENTATIONS, LT_INTERNALSIZE, TIMEBUCKETS)
+        MAX_SESSION_REPRESENTATIONS, LT_INTERNALSIZE)
 N_ITEMS = datahandler.get_num_items()
 N_SESSIONS = datahandler.get_num_training_sessions()
 
@@ -198,7 +196,7 @@ while epoch <= MAX_EPOCHS:
     
     datahandler.reset_user_batch_data()
     _batch_number = 0
-    xinput, targetvalues, sl, session_reps, sr_sl, user_list = datahandler.get_next_train_batch()
+    xinput, targetvalues, sl, session_reps, sr_sl, user_list, _ = datahandler.get_next_train_batch()
 
     while len(xinput) > int(BATCHSIZE/2):
         _batch_number += 1
@@ -224,7 +222,7 @@ while epoch <= MAX_EPOCHS:
             eta = "%.2f" % eta
             print(" | ETA:", eta, "minutes.")
         
-        xinput, targetvalues, sl, session_reps, sr_sl, user_list = datahandler.get_next_train_batch()
+        xinput, targetvalues, sl, session_reps, sr_sl, user_list, _ = datahandler.get_next_train_batch()
 
     print("Epoch", epoch, "finished")
     print("|- Epoch loss:", epoch_loss)
@@ -238,7 +236,7 @@ while epoch <= MAX_EPOCHS:
     tester = Tester()
     datahandler.reset_user_batch_data()
     _batch_number = 0
-    xinput, targetvalues, sl, session_reps, sr_sl, user_list = datahandler.get_next_test_batch()
+    xinput, targetvalues, sl, session_reps, sr_sl, user_list, _ = datahandler.get_next_test_batch()
     while len(xinput) > int(BATCHSIZE/2):
         batch_start_time = time.time()
         _batch_number += 1
@@ -263,7 +261,7 @@ while epoch <= MAX_EPOCHS:
             print("Current evaluation:")
             print(current_results)
 
-        xinput, targetvalues, sl, session_reps, sr_sl, user_list = datahandler.get_next_test_batch()
+        xinput, targetvalues, sl, session_reps, sr_sl, user_list, _ = datahandler.get_next_test_batch()
 
     # Print final test stats for epoch
     test_stats, current_recall5, current_recall20 = tester.get_stats_and_reset()

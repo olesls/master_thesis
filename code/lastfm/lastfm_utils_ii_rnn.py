@@ -9,7 +9,7 @@ import time
 
 class IIRNNDataHandler:
     
-    def __init__(self, dataset_path, batch_size, test_log, max_sess_reps, lt_internalsize, timebuckets=[]):
+    def __init__(self, dataset_path, batch_size, test_log, max_sess_reps, lt_internalsize, timebuckets=[0]):
         # LOAD DATASET
         self.dataset_path = dataset_path
         self.batch_size = batch_size
@@ -33,15 +33,11 @@ class IIRNNDataHandler:
         self.LT_INTERNALSIZE = lt_internalsize
 
         self.timebuckets = timebuckets
-        if len(timebuckets) > 0:
-            self.trainset_time_vectors = [None]*len(self.trainset)
-            self.testset_time_vectors = [None]*len(self.testset)
-            self.initialize_all_time_vectors(self.trainset_time_vectors, 
-                    self.trainset, self.train_session_lengths)
-            self.initialize_all_time_vectors(self.testset_time_vectors, 
-                    self.testset, self.test_session_lengths)
+        self.trainset_time_vectors = [None]*len(self.trainset)
+        self.testset_time_vectors = [None]*len(self.testset)
+        self.initialize_all_time_vectors(self.trainset_time_vectors, self.trainset, self.train_session_lengths)
+        self.initialize_all_time_vectors(self.testset_time_vectors, self.testset, self.test_session_lengths)
 
-        self.create
         # LOG
         self.test_log = test_log
         logging.basicConfig(filename=test_log,level=logging.DEBUG)
@@ -49,7 +45,7 @@ class IIRNNDataHandler:
         # batch control
         self.reset_user_batch_data()
 
-    def create_time_vector(self.time_diff):
+    def create_time_vector(self, time_diff):
         time_vector = [0] * (len(self.timebuckets)+1)
         for i in range(len(self.timebuckets)):
             if time_diff < self.timebuckets[i]:
@@ -61,19 +57,19 @@ class IIRNNDataHandler:
 
     def initialize_all_time_vectors(self, time_vectors, dataset, session_lengths):
         for user, sessions in dataset.items():
-            time_vectors[i] = []
-            time_vectors[i].append(self.create_time_vector(0))  #First does not matter, since no past sessions
+            time_vectors[user] = []
+            time_vectors[user].append(self.create_time_vector(0))  #First does not matter, since no past sessions
             for i in range(len(sessions)-1):
-                last = session_lengths[user][i]-1
+                lastsession_last_index = session_lengths[user][i]-1
                 last = sessions[i]      #last/current session
                 current = sessions[i+1]
-                last = last[-1]         #last/current event
+                last = last[lastsession_last_index]         #last/current event
                 current = current[0]
-                last = last[1]          #last/current timestamp
-                current = current[1]
-                print("last:", last, "    current:", current)
-                time_diff = current - last
-                time_vectors[i].append(self.create_time_vector(time_diff))
+                last = last[0]          #last/current timestamp
+                current = current[0]
+                time_diff = last -  current # TODO: REVERSE THIS AND THE ORDER OF SESSIONS!
+                #print("last:", last, "    current:", current, "    time_diff:", str(time_diff))
+                time_vectors[user].append(self.create_time_vector(time_diff))
 
     # call before training and testing
     def reset_user_batch_data(self):
@@ -135,12 +131,12 @@ class IIRNNDataHandler:
     def get_num_test_batches(self):
         return self.get_num_batches(self.testset)
 
-    def get_next_batch(self, dataset, dataset_session_lengths):
+    def get_next_batch(self, dataset, dataset_session_lengths, time_vectors):
         session_batch = []
         session_lengths = []
         sess_rep_batch = []
         sess_rep_lengths = []
-
+        sess_time_vectors = []
         
         # Decide which users to take sessions from. First count the number of remaining sessions
         remaining_sessions = [0]*len(self.users_with_remaining_sessions)
@@ -162,6 +158,8 @@ class IIRNNDataHandler:
             session_lengths.append(dataset_session_lengths[user][session_index])
             sess_rep_batch.append(self.user_session_representations[user])
             sess_rep_lengths.append(max(self.num_user_session_representations[user], 1))
+            sess_time_vectors.append(time_vectors[user][session_index])
+
             self.user_next_session_to_retrieve[user] += 1
             if self.user_next_session_to_retrieve[user] >= len(dataset[user]):
                 # User have no more session, remove him from users_with_remaining_sessions
@@ -171,13 +169,13 @@ class IIRNNDataHandler:
         x = [session[:-1] for session in session_batch]
         y = [session[1:] for session in session_batch]
 
-        return x, y, session_lengths, sess_rep_batch, sess_rep_lengths, user_list
+        return x, y, session_lengths, sess_rep_batch, sess_rep_lengths, user_list, sess_time_vectors
 
     def get_next_train_batch(self):
-        return self.get_next_batch(self.trainset, self.train_session_lengths)
+        return self.get_next_batch(self.trainset, self.train_session_lengths, self.trainset_time_vectors)
 
     def get_next_test_batch(self):
-        return self.get_next_batch(self.testset, self.test_session_lengths)
+        return self.get_next_batch(self.testset, self.test_session_lengths, self.testset_time_vectors)
 
     def get_latest_epoch(self, epoch_file):
         if not os.path.isfile(epoch_file):
@@ -212,3 +210,4 @@ class IIRNNDataHandler:
             self.user_session_representations[user].appendleft(session_representation)
             num_reps = self.num_user_session_representations[user]
             self.num_user_session_representations[user] = min(self.MAX_SESSION_REPRESENTATIONS, num_reps+1)
+
