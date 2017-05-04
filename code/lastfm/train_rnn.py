@@ -14,19 +14,20 @@ from test_util import Tester
 reddit = "subreddit"
 lastfm = "lastfm"
 
-dataset = lastfm
+dataset = reddit
 
 dataset_path = os.path.expanduser('~') + '/datasets/'+dataset+'/4_train_test_split.pickle'
 epoch_file = './epoch_file-simple-rnn-'+dataset+'.pickle'
 checkpoint_file = './checkpoints/plain-rnn-'+dataset+'-'
 checkpoint_file_ending = '.ckpt'
 date_now = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d')
-log_file = './testlog/'+str(date_now)+'-testing.txt'
+log_file = './testlog/'+str(date_now)+'-testing-plain-rnn.txt'
 
 
 # This might not work, might have to set the seed inside the training loop or something
 # TODO: Check if this works
-tf.set_random_seed(0)
+seed = 0
+tf.set_random_seed(seed)
 
 N_ITEMS      = -1       # number of items (size of 1-hot vector) #labels
 BATCHSIZE    = 100      #
@@ -34,7 +35,7 @@ if dataset == reddit:
     INTERNALSIZE = 50
 elif dataset == lastfm:
     INTERNALSIZE = 100     # size of internal vectors/states in the rnn
-N_LAYERS     = 1        # number of layers in the rnn
+N_LAYERS     = 2        # number of layers in the rnn
 SEQLEN       = 20-1     # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
 EMBEDDING_SIZE = INTERNALSIZE
 TOP_K = 20
@@ -52,7 +53,7 @@ message = "---------------------------------------------------------------------
 message += "DATASET: "+dataset+" MODEL: plain RNN"
 message += "\nCONFIG: N_ITEMS="+str(N_ITEMS)+" BATCHSIZE="+str(BATCHSIZE)+" INTERNALSIZE="+str(INTERNALSIZE)
 message += "\nN_LAYERS="+str(N_LAYERS)+" SEQLEN="+str(SEQLEN)+" EMBEDDING_SIZE="+str(EMBEDDING_SIZE)
-message += "\nN_SESSIONS="+str(N_SESSIONS)+"\n"
+message += "\nN_SESSIONS="+str(N_SESSIONS)+" SEED="+str(seed)+"\n"
 datahandler.log_config(message)
 print(message)
 

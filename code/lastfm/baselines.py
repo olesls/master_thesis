@@ -10,7 +10,7 @@ from test_util import Tester
 reddit = "subreddit"
 lastfm = "lastfm"
 
-dataset = reddit
+dataset = lastfm
 
 dataset_path = os.path.expanduser('~') + '/datasets/'+dataset+'/4_train_test_split.pickle'
 
@@ -107,7 +107,7 @@ def knn():
     datahandler.reset_user_batch_data()
     cooccurrances = []
     for i in range(num_items):
-        cooccurrances.append([0]*num_items)
+        cooccurrances.append({})
 
     # Training
     x, y, sl = datahandler.get_next_train_batch()
@@ -120,15 +120,22 @@ def knn():
 
             for i in range(len(items)-1):
                 for j in range(i+1, len(items)):
+                    if items[j] not in cooccurrances[items[i]]:
+                        cooccurrances[items[i]][items[j]] = 0
                     cooccurrances[items[i]][items[j]] += 1
 
         x, y, sl = datahandler.get_next_train_batch()
-
+    
+    # Find the highest cooccurences
     preds = [None]*num_items
     for i in range(num_items):
-        preds[i] = sorted(range(len(cooccurrances[i])), key=lambda j:cooccurrances[i][j])
-        preds[i] = preds[i][-num_predictions:]
-        preds[i] = list(reversed(preds[i]))
+        d = cooccurrances[i]
+        d = list(d.items())
+        d = sorted(d, key=lambda x:x[1])
+        d = [x[0] for x in d[-num_predictions:]]
+        preds[i] = list(reversed(d))
+
+    del(cooccurrances)
 
     #Testing
     tester = Tester()

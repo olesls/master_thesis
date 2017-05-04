@@ -21,9 +21,10 @@ epoch_file = './epoch_file-iirnn-'+dataset+'.pickle'
 checkpoint_file = './checkpoints/ii-rnn-'+dataset+'-'
 checkpoint_file_ending = '.ckpt'
 date_now = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d')
-log_file = './testlog/'+str(date_now)+'-testing.txt'
+log_file = './testlog/'+str(date_now)+'-testing-ii-rnn.txt'
 
-tf.set_random_seed(0)
+seed = 0
+tf.set_random_seed(seed)
 
 N_ITEMS      = -1       # number of items (size of 1-hot vector) #labels
 BATCHSIZE    = 100      #
@@ -53,7 +54,8 @@ message += "DATASET: "+dataset+" MODEL: II-RNN"
 message += "\nCONFIG: N_ITEMS="+str(N_ITEMS)+" BATCHSIZE="+str(BATCHSIZE)
 message += "\nST_INTERNALSIZE="+str(ST_INTERNALSIZE)+" LT_INTERNALSIZE="+str(LT_INTERNALSIZE)
 message += "\nN_LAYERS="+str(N_LAYERS)+" SEQLEN="+str(SEQLEN)+" EMBEDDING_SIZE="+str(EMBEDDING_SIZE)
-message += "\nN_SESSIONS="+str(N_SESSIONS)+"\n"
+message += "\nN_SESSIONS="+str(N_SESSIONS)+" SEED="+str(seed)
+message += "\nMAX_SESSION_REPRESENTATIONS="+str(MAX_SESSION_REPRESENTATIONS)
 datahandler.log_config(message)
 print(message)
 
