@@ -9,7 +9,7 @@ import time
 
 class IIRNNDataHandler:
     
-    def __init__(self, dataset_path, batch_size, test_log, max_sess_reps, lt_internalsize):
+    def __init__(self, dataset_path, batch_size, test_log, max_sess_reps, lt_internalsize, timebuckets=[]):
         # LOAD DATASET
         self.dataset_path = dataset_path
         self.batch_size = batch_size
@@ -17,7 +17,7 @@ class IIRNNDataHandler:
         load_time = time.time()
         dataset = pickle.load(open(self.dataset_path, 'rb'))
         print("|- dataset loaded in", str(time.time()-load_time), "s")
-        
+
         self.trainset = dataset['trainset']
         self.testset = dataset['testset']
         self.train_session_lengths = dataset['train_session_lengths']
@@ -31,12 +31,49 @@ class IIRNNDataHandler:
         # II_RNN stuff
         self.MAX_SESSION_REPRESENTATIONS = max_sess_reps
         self.LT_INTERNALSIZE = lt_internalsize
+
+        self.timebuckets = timebuckets
+        if len(timebuckets) > 0:
+            self.trainset_time_vectors = [None]*len(self.trainset)
+            self.testset_time_vectors = [None]*len(self.testset)
+            self.initialize_all_time_vectors(self.trainset_time_vectors, 
+                    self.trainset, self.train_session_lengths)
+            self.initialize_all_time_vectors(self.testset_time_vectors, 
+                    self.testset, self.test_session_lengths)
+
+        self.create
         # LOG
         self.test_log = test_log
         logging.basicConfig(filename=test_log,level=logging.DEBUG)
     
         # batch control
         self.reset_user_batch_data()
+
+    def create_time_vector(self.time_diff):
+        time_vector = [0] * (len(self.timebuckets)+1)
+        for i in range(len(self.timebuckets)):
+            if time_diff < self.timebuckets[i]:
+                time_vector[i] = 1
+                return time_vector
+        time_vector[-1] = 1
+        return time_vector
+    
+
+    def initialize_all_time_vectors(self, time_vectors, dataset, session_lengths):
+        for user, sessions in dataset.items():
+            time_vectors[i] = []
+            time_vectors[i].append(self.create_time_vector(0))  #First does not matter, since no past sessions
+            for i in range(len(sessions)-1):
+                last = session_lengths[user][i]-1
+                last = sessions[i]      #last/current session
+                current = sessions[i+1]
+                last = last[-1]         #last/current event
+                current = current[0]
+                last = last[1]          #last/current timestamp
+                current = current[1]
+                print("last:", last, "    current:", current)
+                time_diff = current - last
+                time_vectors[i].append(self.create_time_vector(time_diff))
 
     # call before training and testing
     def reset_user_batch_data(self):
@@ -103,6 +140,7 @@ class IIRNNDataHandler:
         session_lengths = []
         sess_rep_batch = []
         sess_rep_lengths = []
+
         
         # Decide which users to take sessions from. First count the number of remaining sessions
         remaining_sessions = [0]*len(self.users_with_remaining_sessions)
