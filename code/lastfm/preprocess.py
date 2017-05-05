@@ -10,12 +10,15 @@ runtime = time.time()
 reddit = "subreddit"
 lastfm = "lastfm"
 
-#dataset = reddit
-dataset = lastfm
+dataset = reddit
+#dataset = lastfm
 
 home = os.path.expanduser('~')
 DATASET_DIR = home + '/datasets/'+dataset
-DATASET_FILE = DATASET_DIR + '/userid-timestamp-artid-artname-traid-traname.tsv'
+if dataset == lastfm:
+    DATASET_FILE = DATASET_DIR + '/userid-timestamp-artid-artname-traid-traname.tsv'
+elif dataset == reddit:
+    DATASET_FILE = DATASET_DIR + '/reddit_data.csv'
 DATASET_W_CONVERTED_TIMESTAMPS = DATASET_DIR + '/1_converted_timestamps.pickle'
 DATASET_USER_ARTIST_MAPPED = DATASET_DIR + '/2_user_artist_mapped.pickle'
 DATASET_USER_SESSIONS = DATASET_DIR + '/3_user_sessions.pickle'
@@ -53,6 +56,8 @@ def convert_timestamps_reddit():
             subreddit   = line[1]
             timestamp   = float(line[2])
             dataset_list.append( [user_id, timestamp, subreddit] )
+    
+    dataset_list = list(reversed(dataset_list))
 
     save_pickle(dataset_list, DATASET_W_CONVERTED_TIMESTAMPS)
 
@@ -65,6 +70,8 @@ def convert_timestamps_lastfm():
             timestamp   = (dateutil.parser.parse(line[1])).timestamp()
             artist_id   = line[2]
             dataset_list.append( [user_id, timestamp, artist_id] )
+
+    dataset_list = list(reversed(dataset_list))
 
     save_pickle(dataset_list, DATASET_W_CONVERTED_TIMESTAMPS)
 
@@ -154,7 +161,7 @@ def sort_and_split_usersessions():
         # NB: Dataset is presorted from newest to oldest events
         last_event = current_session[-1]
         last_timestamp = last_event[0]
-        timedelta = last_timestamp - timestamp
+        timedelta = timestamp - last_timestamp
 
         if timedelta < SESSION_TIMEDELTA:
             # new event belongs to current session

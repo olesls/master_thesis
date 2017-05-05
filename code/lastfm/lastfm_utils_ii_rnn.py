@@ -67,7 +67,7 @@ class IIRNNDataHandler:
                 current = current[0]
                 last = last[0]          #last/current timestamp
                 current = current[0]
-                time_diff = last -  current # TODO: REVERSE THIS AND THE ORDER OF SESSIONS!
+                time_diff = current - last
                 #print("last:", last, "    current:", current, "    time_diff:", str(time_diff))
                 time_vectors[user].append(self.create_time_vector(time_diff))
 
