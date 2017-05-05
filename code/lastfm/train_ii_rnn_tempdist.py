@@ -16,7 +16,11 @@ lastfm = "lastfm"
 
 dataset = reddit
 
-dataset_path = os.path.expanduser('~') + '/datasets/'+dataset+'/4_train_test_split.pickle'
+home = os.path.expanduser('~')
+if home == 'root':
+    home = '/notebooks'
+
+dataset_path = home + '/datasets/'+dataset+'/4_train_test_split.pickle'
 epoch_file = './epoch_file-iirnn-tempdist'+dataset+'.pickle'
 checkpoint_file = './checkpoints/iirnn-tempdist-'+dataset+'-'
 checkpoint_file_ending = '.ckpt'

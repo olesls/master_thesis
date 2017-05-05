@@ -14,9 +14,13 @@ from test_util import Tester
 reddit = "subreddit"
 lastfm = "lastfm"
 
-dataset = subreddit
+dataset = lastfm
 
-dataset_path = os.path.expanduser('~') + '/datasets/'+dataset+'/4_train_test_split.pickle'
+home = os.path.expanduser('~')
+if home == 'root':
+    home = '/notebooks'
+
+dataset_path = home + '/datasets/'+dataset+'/4_train_test_split.pickle'
 epoch_file = './epoch_file-iirnn-'+dataset+'.pickle'
 checkpoint_file = './checkpoints/ii-rnn-'+dataset+'-'
 checkpoint_file_ending = '.ckpt'
@@ -32,17 +36,17 @@ if dataset == reddit:
     ST_INTERNALSIZE = 50
     LT_INTERNALSIZE = ST_INTERNALSIZE
 elif dataset == lastfm:
-    ST_INTERNALSIZE = 100   # size of internal vectors/states in the rnn
+    ST_INTERNALSIZE = 150   # size of internal vectors/states in the rnn
     LT_INTERNALSIZE = ST_INTERNALSIZE
 N_LAYERS     = 1        # number of layers in the rnn
 SEQLEN       = 20-1     # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
 EMBEDDING_SIZE = ST_INTERNALSIZE
 TOP_K = 20
 MAX_EPOCHS = 100
-MAX_SESSION_REPRESENTATIONS = 10
+MAX_SESSION_REPRESENTATIONS = 15
 
-learning_rate = 0.001   # fixed learning rate
-dropout_pkeep = 1.0     # no dropout
+learning_rate = 0.0007   # fixed learning rate
+dropout_pkeep = 0.7     # no dropout
 
 # Load training data
 datahandler = IIRNNDataHandler(dataset_path, BATCHSIZE, log_file, 

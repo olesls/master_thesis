@@ -14,6 +14,9 @@ dataset = reddit
 #dataset = lastfm
 
 home = os.path.expanduser('~')
+if home == '/root': # for the telenor server
+    home = '/notebooks'
+
 DATASET_DIR = home + '/datasets/'+dataset
 if dataset == lastfm:
     DATASET_FILE = DATASET_DIR + '/userid-timestamp-artid-artname-traid-traname.tsv'
