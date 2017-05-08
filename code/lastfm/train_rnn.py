@@ -17,7 +17,7 @@ lastfm = "lastfm"
 dataset = reddit
 
 home = os.path.expanduser('~')
-if home == 'root':
+if home == '/root':
     home = '/notebooks'
 
 dataset_path = home + '/datasets/'+dataset+'/4_train_test_split.pickle'
