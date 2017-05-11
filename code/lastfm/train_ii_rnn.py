@@ -43,7 +43,7 @@ SEQLEN       = 20-1     # maximum number of actions in a session (or more precis
 EMBEDDING_SIZE = ST_INTERNALSIZE
 TOP_K = 20
 MAX_EPOCHS = 100
-MAX_SESSION_REPRESENTATIONS = 15
+MAX_SESSION_REPRESENTATIONS = 5
 
 learning_rate = 0.0007   # fixed learning rate
 dropout_pkeep = 0.7     # no dropout
@@ -61,6 +61,7 @@ message += "\nST_INTERNALSIZE="+str(ST_INTERNALSIZE)+" LT_INTERNALSIZE="+str(LT_
 message += "\nN_LAYERS="+str(N_LAYERS)+" SEQLEN="+str(SEQLEN)+" EMBEDDING_SIZE="+str(EMBEDDING_SIZE)
 message += "\nN_SESSIONS="+str(N_SESSIONS)+" SEED="+str(seed)
 message += "\nMAX_SESSION_REPRESENTATIONS="+str(MAX_SESSION_REPRESENTATIONS)
+message += "\nDROPOUT="+str(dropout_pkeep)+" LEARNING_RATE="+str(learning_rate)
 datahandler.log_config(message)
 print(message)
 

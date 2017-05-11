@@ -207,7 +207,7 @@ class IIRNNDataHandler:
         for i in range(len(user_list)):
             user = user_list[i]
             session_representation = sessions_representations[i]
-            self.user_session_representations[user].appendleft(session_representation)
+            self.user_session_representations[user].append(session_representation)
             num_reps = self.num_user_session_representations[user]
             self.num_user_session_representations[user] = min(self.MAX_SESSION_REPRESENTATIONS, num_reps+1)
 
