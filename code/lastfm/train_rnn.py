@@ -13,8 +13,9 @@ from test_util import Tester
 
 reddit = "subreddit"
 lastfm = "lastfm"
+instacart = "instacart"
 
-dataset = reddit
+dataset = instacart
 
 home = os.path.expanduser('~')
 if home == '/root':
@@ -39,6 +40,8 @@ if dataset == reddit:
     INTERNALSIZE = 50
 elif dataset == lastfm:
     INTERNALSIZE = 100     # size of internal vectors/states in the rnn
+elif dataset == instacart:
+    INTERNALSIZE = 80
 N_LAYERS     = 1        # number of layers in the rnn
 SEQLEN       = 20-1     # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
 EMBEDDING_SIZE = INTERNALSIZE
@@ -162,6 +165,7 @@ summary_writer = tf.summary.FileWriter("log/" + timestamp + "-training", sess.gr
 ##
 
 print("Starting training.")
+'''
 epoch = datahandler.get_latest_epoch(epoch_file)
 print("|-Starting on epoch", epoch+1)
 if epoch > 0:
@@ -171,6 +175,9 @@ if epoch > 0:
 else:
     sess.run(init)
 epoch += 1
+'''
+epoch = 1
+sess.run(init)
 print()
 
 best_recall5 = -1
@@ -252,6 +259,7 @@ while epoch <= MAX_EPOCHS:
     test_stats, current_recall5, current_recall20 = tester.get_stats_and_reset()
     print(test_stats)
     
+    '''
     if current_recall5 > best_recall5 or current_recall20 > best_recall20:
         # Save the model
         print("Saving model.")
@@ -261,6 +269,7 @@ while epoch <= MAX_EPOCHS:
 
         best_recall5 = current_recall5
         best_recall20 = current_recall20
+    '''
 
     datahandler.store_current_epoch(epoch, epoch_file)
     datahandler.log_test_stats(epoch, epoch_loss, test_stats)
