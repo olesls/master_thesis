@@ -190,6 +190,7 @@ else:
 epoch += 1
 '''
 epoch = 1
+sess.run(init)
 print()
 
 
