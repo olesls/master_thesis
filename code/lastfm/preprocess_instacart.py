@@ -62,6 +62,9 @@ if not file_exists(DATASET_USER_ORDER_PRODUCTS_COMBINED):
     
             user_orders[user_id].append([order_number, order_id])
             order_info[order_id] = [order_dow, order_hod, days_since_prior_order]
+
+            if len(user_orders.keys()) > 20000:
+                break
     
     print("Sorting user orders.")
     # ensure that orders are sorted for each user
