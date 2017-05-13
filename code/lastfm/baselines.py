@@ -9,8 +9,9 @@ from test_util import Tester
 
 reddit = "subreddit"
 lastfm = "lastfm"
+instacart = "instacart"
 
-dataset = lastfm
+dataset = instacart
 
 dataset_path = os.path.expanduser('~') + '/datasets/'+dataset+'/4_train_test_split.pickle'
 
@@ -159,6 +160,6 @@ def knn():
 
 
 
-#most_recent()
-#most_popular()
+most_recent()
+most_popular()
 knn()
