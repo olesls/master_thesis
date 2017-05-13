@@ -269,9 +269,9 @@ while epoch <= MAX_EPOCHS:
 
         best_recall5 = current_recall5
         best_recall20 = current_recall20
+        datahandler.store_current_epoch(epoch, epoch_file)
     '''
 
-    datahandler.store_current_epoch(epoch, epoch_file)
     datahandler.log_test_stats(epoch, epoch_loss, test_stats)
 
     epoch += 1

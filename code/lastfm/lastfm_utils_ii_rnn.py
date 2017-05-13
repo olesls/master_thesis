@@ -148,7 +148,6 @@ class IIRNNDataHandler:
         user_list = IIRNNDataHandler.get_N_highest_indexes(remaining_sessions, self.batch_size)
         for i in range(len(user_list)):
             user_list[i] = self.users_with_remaining_sessions[user_list[i]]
-        # TODO: Run with pdb and check that the users in user_list have decreasing number of sessions, and they should also have alot of sessions.
 
         # For each user -> get the next session, and check if we should remove 
         # him from the list of users with remaining sessions
@@ -156,8 +155,9 @@ class IIRNNDataHandler:
             session_index = self.user_next_session_to_retrieve[user]
             session_batch.append(dataset[user][session_index])
             session_lengths.append(dataset_session_lengths[user][session_index])
+            srl = max(self.num_user_session_representations[user], 1)
+            sess_rep_lengths.append(srl)
             sess_rep_batch.append(self.user_session_representations[user])
-            sess_rep_lengths.append(max(self.num_user_session_representations[user], 1))
             sess_time_vectors.append(time_vectors[user][session_index])
 
             self.user_next_session_to_retrieve[user] += 1
@@ -207,7 +207,16 @@ class IIRNNDataHandler:
         for i in range(len(user_list)):
             user = user_list[i]
             session_representation = sessions_representations[i]
-            self.user_session_representations[user].append(session_representation)
+
             num_reps = self.num_user_session_representations[user]
+            d = self.user_session_representations[user]
+            if(num_reps < self.MAX_SESSION_REPRESENTATIONS):
+                d.rotate(-num_reps)
+                d.append(session_representation)
+                d.rotate(num_reps+1)
+            else:
+                d.append(session_representation)
+            self.user_session_representations[user] = d
+
             self.num_user_session_representations[user] = min(self.MAX_SESSION_REPRESENTATIONS, num_reps+1)
 

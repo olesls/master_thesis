@@ -15,7 +15,7 @@ reddit = "subreddit"
 lastfm = "lastfm"
 instacart = "instacart"
 
-dataset = instacart
+dataset = lastfm
 
 home = os.path.expanduser('~')
 if home == '/root':
@@ -37,7 +37,7 @@ if dataset == reddit:
     ST_INTERNALSIZE = 50
     LT_INTERNALSIZE = ST_INTERNALSIZE
 elif dataset == lastfm:
-    ST_INTERNALSIZE = 150   # size of internal vectors/states in the rnn
+    ST_INTERNALSIZE = 100   # size of internal vectors/states in the rnn
     LT_INTERNALSIZE = ST_INTERNALSIZE
 elif dataset == instacart:
     ST_INTERNALSIZE = 80
@@ -47,10 +47,10 @@ SEQLEN       = 20-1     # maximum number of actions in a session (or more precis
 EMBEDDING_SIZE = ST_INTERNALSIZE
 TOP_K = 20
 MAX_EPOCHS = 100
-MAX_SESSION_REPRESENTATIONS = 5
+MAX_SESSION_REPRESENTATIONS = 10
 
 learning_rate = 0.001   # fixed learning rate
-dropout_pkeep = 1.0     # no dropout
+dropout_pkeep = 0.8     # no dropout
 
 # Load training data
 datahandler = IIRNNDataHandler(dataset_path, BATCHSIZE, log_file, 
