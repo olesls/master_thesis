@@ -47,7 +47,7 @@ SEQLEN       = 20-1     # maximum number of actions in a session (or more precis
 EMBEDDING_SIZE = ST_INTERNALSIZE
 TOP_K = 20
 MAX_EPOCHS = 100
-MAX_SESSION_REPRESENTATIONS = 10
+MAX_SESSION_REPRESENTATIONS = 5
 
 learning_rate = 0.001   # fixed learning rate
 dropout_pkeep = 0.8     # no dropout

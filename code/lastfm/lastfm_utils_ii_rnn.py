@@ -209,14 +209,8 @@ class IIRNNDataHandler:
             session_representation = sessions_representations[i]
 
             num_reps = self.num_user_session_representations[user]
-            d = self.user_session_representations[user]
-            if(num_reps < self.MAX_SESSION_REPRESENTATIONS):
-                d.rotate(-num_reps)
-                d.append(session_representation)
-                d.rotate(num_reps+1)
-            else:
-                d.append(session_representation)
-            self.user_session_representations[user] = d
+            self.user_session_representations[user].append(session_representation)
 
-            self.num_user_session_representations[user] = min(self.MAX_SESSION_REPRESENTATIONS, num_reps+1)
+            #self.num_user_session_representations[user] = min(self.MAX_SESSION_REPRESENTATIONS, num_reps+1)
+            self.num_user_session_representations[user] = self.MAX_SESSION_REPRESENTATIONS
 
