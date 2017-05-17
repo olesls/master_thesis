@@ -190,7 +190,7 @@ if save_best:
     print("|-Starting on epoch", epoch+1)
     if epoch > 0:
         print("|--Restoring model.")
-        save_file = checkpoint_file + str(epoch) + checkpoint_file_ending
+        save_file = checkpoint_file + checkpoint_file_ending
         saver.restore(sess, save_file)
     else:
         sess.run(init)
