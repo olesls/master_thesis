@@ -17,6 +17,8 @@ instacart = "instacart"
 
 dataset = lastfm
 
+save_best = False
+
 home = os.path.expanduser('~')
 if home == '/root':
     home = '/notebooks'
@@ -182,19 +184,21 @@ summary_writer = tf.summary.FileWriter("log/" + timestamp + "-training", sess.gr
 ##
 
 print("Starting training.")
-'''
-epoch = datahandler.get_latest_epoch(epoch_file)
-print("|-Starting on epoch", epoch+1)
-if epoch > 0:
-    print("|--Restoring model.")
-    save_file = checkpoint_file + str(epoch) + checkpoint_file_ending
-    saver.restore(sess, save_file)
+
+if save_best:
+    epoch = datahandler.get_latest_epoch(epoch_file)
+    print("|-Starting on epoch", epoch+1)
+    if epoch > 0:
+        print("|--Restoring model.")
+        save_file = checkpoint_file + str(epoch) + checkpoint_file_ending
+        saver.restore(sess, save_file)
+    else:
+        sess.run(init)
+    epoch += 1
 else:
     sess.run(init)
-epoch += 1
-'''
-epoch = 1
-sess.run(init)
+    epoch = 1
+
 print()
 
 
@@ -280,19 +284,18 @@ while epoch <= MAX_EPOCHS:
     test_stats, current_recall5, current_recall20 = tester.get_stats_and_reset()
     print(test_stats)
     
-    '''
-    if current_recall5 > best_recall5 or current_recall20 > best_recall20:
-        # Save the model
-        print("Saving model.")
-        save_file = checkpoint_file + str(epoch) + checkpoint_file_ending
-        save_path = saver.save(sess, save_file)
-        print("|- Model saved in file:", save_path)
+    if save_best:
+        if current_recall5 > best_recall5 or current_recall20 > best_recall20:
+            # Save the model
+            print("Saving model.")
+            save_file = checkpoint_file + checkpoint_file_ending
+            save_path = saver.save(sess, save_file)
+            print("|- Model saved in file:", save_path)
 
-        datahandler.store_current_epoch(epoch, epoch_file)
+            datahandler.store_current_epoch(epoch, epoch_file)
 
-        best_recall5 = current_recall5
-        best_recall20 = current_recall20
-    '''
+            best_recall5 = current_recall5
+            best_recall20 = current_recall20
 
     datahandler.log_test_stats(epoch, epoch_loss, test_stats)
 
