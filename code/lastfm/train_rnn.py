@@ -15,9 +15,9 @@ reddit = "subreddit"
 lastfm = "lastfm"
 instacart = "instacart"
 
-dataset = lastfm
+dataset = reddit
 
-save_best = False
+save_best = True
 
 home = os.path.expanduser('~')
 if home == '/root':
@@ -33,25 +33,29 @@ log_file = './testlog/'+str(date_now)+'-testing-plain-rnn.txt'
 
 # This might not work, might have to set the seed inside the training loop or something
 # TODO: Check if this works
-seed = 2
+seed = 0
 tf.set_random_seed(seed)
 
 N_ITEMS      = -1       # number of items (size of 1-hot vector) #labels
 BATCHSIZE    = 100      #
 if dataset == reddit:
     INTERNALSIZE = 50
+    learning_rate = 0.001
+    dropout_pkeep = 1.0
 elif dataset == lastfm:
-    INTERNALSIZE = 100     # size of internal vectors/states in the rnn
+    INTERNALSIZE = 100
+    learning_rate = 0.001
+    dropout_pkeep = 0.8
 elif dataset == instacart:
     INTERNALSIZE = 80
+    learning_rate = 0.001
+    dropout_pkeep = 0.8
 N_LAYERS     = 1        # number of layers in the rnn
 SEQLEN       = 20-1     # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
 EMBEDDING_SIZE = INTERNALSIZE
 TOP_K = 20
 MAX_EPOCHS = 100
 
-learning_rate = 0.001   # fixed learning rate
-dropout_pkeep = 0.8     # no dropout
 
 # Load training data
 datahandler = PlainRNNDataHandler(dataset_path, BATCHSIZE, log_file)
@@ -192,7 +196,7 @@ num_test_batches = datahandler.get_num_test_batches()
 while epoch <= MAX_EPOCHS:
     print("Starting epoch #"+str(epoch))
     epoch_loss = 0
-
+    
     datahandler.reset_user_batch_data()
     _batch_number = 0
     xinput, targetvalues, sl = datahandler.get_next_train_batch()
@@ -222,7 +226,6 @@ while epoch <= MAX_EPOCHS:
 
     print("Epoch", epoch, "finished")
     print("|- Epoch loss:", epoch_loss)
-
     
     ##
     ##  TESTING
