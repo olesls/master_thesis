@@ -15,9 +15,10 @@ reddit = "subreddit"
 lastfm = "lastfm"
 instacart = "instacart"
 
-dataset = reddit
+dataset = lastfm
 
 save_best = True
+do_training = False
 
 home = os.path.expanduser('~')
 if home == '/root':
@@ -172,19 +173,15 @@ summary_writer = tf.summary.FileWriter("log/" + timestamp + "-training", sess.gr
 
 print("Starting training.")
 
-if save_best:
-    epoch = datahandler.get_latest_epoch(epoch_file)
-    print("|-Starting on epoch", epoch+1)
-    if epoch > 0:
-        print("|--Restoring model.")
-        save_file = checkpoint_file + checkpoint_file_ending
-        saver.restore(sess, save_file)
-    else:
-        sess.run(init)
-    epoch += 1
+epoch = datahandler.get_latest_epoch(epoch_file)
+print("|-Starting on epoch", epoch+1)
+if epoch > 0:
+    print("|--Restoring model.")
+    save_file = checkpoint_file + checkpoint_file_ending
+    saver.restore(sess, save_file)
 else:
     sess.run(init)
-    epoch = 1
+epoch += 1
 
 print()
 
@@ -196,36 +193,37 @@ num_test_batches = datahandler.get_num_test_batches()
 while epoch <= MAX_EPOCHS:
     print("Starting epoch #"+str(epoch))
     epoch_loss = 0
-    
-    datahandler.reset_user_batch_data()
-    _batch_number = 0
-    xinput, targetvalues, sl = datahandler.get_next_train_batch()
-    
-    while len(xinput) > int(BATCHSIZE/2):
-        _batch_number += 1
-        batch_start_time = time.time()
-        
-        feed_dict = {X: xinput, Y_: targetvalues, lr: learning_rate, pkeep: 
-                dropout_pkeep, batchsize: len(xinput), seq_len: sl}
 
-        _, bl = sess.run([train_step, batchloss], feed_dict=feed_dict)
-    
-        # save training data for Tensorboard
-        #summary_writer.add_summary(smm, _batch_number)
-
-        batch_runtime = time.time() - batch_start_time
-        epoch_loss += bl
-        if _batch_number%100==0:
-            print("Batch number:", str(_batch_number), "/", str(num_training_batches), "| Batch time:", "%.2f" % batch_runtime, " seconds", end='')
-            print(" | Batch loss:", bl, end='')
-            eta = (batch_runtime*(num_training_batches-_batch_number))/60
-            eta = "%.2f" % eta
-            print(" | ETA:", eta, "minutes.")
-        
+    if do_training:
+        datahandler.reset_user_batch_data()
+        _batch_number = 0
         xinput, targetvalues, sl = datahandler.get_next_train_batch()
-
-    print("Epoch", epoch, "finished")
-    print("|- Epoch loss:", epoch_loss)
+        
+        while len(xinput) > int(BATCHSIZE/2):
+            _batch_number += 1
+            batch_start_time = time.time()
+            
+            feed_dict = {X: xinput, Y_: targetvalues, lr: learning_rate, pkeep: 
+                    dropout_pkeep, batchsize: len(xinput), seq_len: sl}
+    
+            _, bl = sess.run([train_step, batchloss], feed_dict=feed_dict)
+        
+            # save training data for Tensorboard
+            #summary_writer.add_summary(smm, _batch_number)
+    
+            batch_runtime = time.time() - batch_start_time
+            epoch_loss += bl
+            if _batch_number%100==0:
+                print("Batch number:", str(_batch_number), "/", str(num_training_batches), "| Batch time:", "%.2f" % batch_runtime, " seconds", end='')
+                print(" | Batch loss:", bl, end='')
+                eta = (batch_runtime*(num_training_batches-_batch_number))/60
+                eta = "%.2f" % eta
+                print(" | ETA:", eta, "minutes.")
+            
+            xinput, targetvalues, sl = datahandler.get_next_train_batch()
+    
+        print("Epoch", epoch, "finished")
+        print("|- Epoch loss:", epoch_loss)
     
     ##
     ##  TESTING

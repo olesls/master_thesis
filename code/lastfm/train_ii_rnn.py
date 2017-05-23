@@ -15,8 +15,9 @@ reddit = "subreddit"
 lastfm = "lastfm"
 instacart = "instacart"
 
-dataset = reddit
+dataset = lastfm
 
+do_training = True
 save_best = True
 
 home = os.path.expanduser('~')
@@ -76,6 +77,11 @@ message += "\nDROPOUT="+str(dropout_pkeep)+" LEARNING_RATE="+str(learning_rate)
 datahandler.log_config(message)
 print(message)
 
+if not do_training:
+    print()
+    print("OBS!!!! Training is turned off!")
+    print()
+
 
 ##
 ## The model
@@ -104,7 +110,8 @@ with tf.device(gpu[0]):
 
     # Longterm RNN
     lt_cell = rnn.GRUCell(LT_INTERNALSIZE)
-    lt_rnn_outputs, lt_rnn_states = tf.nn.dynamic_rnn(lt_cell, X_lt,
+    lt_dropcell = rnn.DropoutWrapper(lt_cell, input_keep_prob=pkeep, output_keep_prob=pkeep)
+    lt_rnn_outputs, lt_rnn_states = tf.nn.dynamic_rnn(lt_dropcell, X_lt,
             sequence_length=seq_len_lt, dtype=tf.float32)
 
     # Get the correct outputs (depends on session_lengths)
@@ -190,19 +197,15 @@ summary_writer = tf.summary.FileWriter("log/" + timestamp + "-training", sess.gr
 
 print("Starting training.")
 
-if save_best:
-    epoch = datahandler.get_latest_epoch(epoch_file)
-    print("|-Starting on epoch", epoch+1)
-    if epoch > 0:
-        print("|--Restoring model.")
-        save_file = checkpoint_file + checkpoint_file_ending
-        saver.restore(sess, save_file)
-    else:
-        sess.run(init)
-    epoch += 1
+epoch = datahandler.get_latest_epoch(epoch_file)
+print("|-Starting on epoch", epoch+1)
+if epoch > 0:
+    print("|--Restoring model.")
+    save_file = checkpoint_file + checkpoint_file_ending
+    saver.restore(sess, save_file)
 else:
     sess.run(init)
-    epoch = 1
+epoch += 1
 
 print()
 
@@ -216,38 +219,39 @@ while epoch <= MAX_EPOCHS:
     print("Starting epoch #"+str(epoch))
     epoch_loss = 0
     
-    datahandler.reset_user_batch_data()
-    _batch_number = 0
-    xinput, targetvalues, sl, session_reps, sr_sl, user_list, _ = datahandler.get_next_train_batch()
-
-    while len(xinput) > int(BATCHSIZE/2):
-        _batch_number += 1
-        batch_start_time = time.time()
-
-        feed_dict = {X: xinput, Y_: targetvalues, X_lt: session_reps, 
-                seq_len_lt: sr_sl, lr: learning_rate, pkeep: dropout_pkeep, 
-                batchsize: len(xinput), seq_len: sl}
-
-        _, bl, final_H = sess.run([train_step, batchloss, H], feed_dict=feed_dict)
-
-        datahandler.store_user_session_representations(final_H, user_list)
-    
-        # save training data for Tensorboard
-        #summary_writer.add_summary(smm, _batch_number)
-
-        batch_runtime = time.time() - batch_start_time
-        epoch_loss += bl
-        if _batch_number%100==0:
-            print("Batch number:", str(_batch_number), "/", str(num_training_batches), "| Batch time:", "%.2f" % batch_runtime, " seconds", end='')
-            print(" | Batch loss:", bl, end='')
-            eta = (batch_runtime*(num_training_batches-_batch_number))/60
-            eta = "%.2f" % eta
-            print(" | ETA:", eta, "minutes.")
-        
+    if do_training:
+        datahandler.reset_user_batch_data()
+        _batch_number = 0
         xinput, targetvalues, sl, session_reps, sr_sl, user_list, _ = datahandler.get_next_train_batch()
 
-    print("Epoch", epoch, "finished")
-    print("|- Epoch loss:", epoch_loss)
+        while len(xinput) > int(BATCHSIZE/2):
+            _batch_number += 1
+            batch_start_time = time.time()
+    
+            feed_dict = {X: xinput, Y_: targetvalues, X_lt: session_reps, 
+                    seq_len_lt: sr_sl, lr: learning_rate, pkeep: dropout_pkeep, 
+                    batchsize: len(xinput), seq_len: sl}
+    
+            _, bl, final_H = sess.run([train_step, batchloss, H], feed_dict=feed_dict)
+    
+            datahandler.store_user_session_representations(final_H, user_list)
+        
+            # save training data for Tensorboard
+            #summary_writer.add_summary(smm, _batch_number)
+    
+            batch_runtime = time.time() - batch_start_time
+            epoch_loss += bl
+            if _batch_number%100==0:
+                print("Batch number:", str(_batch_number), "/", str(num_training_batches), "| Batch time:", "%.2f" % batch_runtime, " seconds", end='')
+                print(" | Batch loss:", bl, end='')
+                eta = (batch_runtime*(num_training_batches-_batch_number))/60
+                eta = "%.2f" % eta
+                print(" | ETA:", eta, "minutes.")
+            
+            xinput, targetvalues, sl, session_reps, sr_sl, user_list, _ = datahandler.get_next_train_batch()
+    
+        print("Epoch", epoch, "finished")
+        print("|- Epoch loss:", epoch_loss)
 
     ##
     ##  TESTING
