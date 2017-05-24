@@ -17,8 +17,8 @@ instacart = "instacart"
 
 dataset = lastfm
 
-do_training = True
-save_best = True
+do_training = False
+save_best = False
 
 home = os.path.expanduser('~')
 if home == '/root':
