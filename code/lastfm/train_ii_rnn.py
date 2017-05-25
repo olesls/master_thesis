@@ -17,8 +17,8 @@ instacart = "instacart"
 
 dataset = lastfm
 
-do_training = False
-save_best = False
+do_training = True
+save_best = True
 
 home = os.path.expanduser('~')
 if home == '/root':
@@ -96,11 +96,14 @@ with tf.device(cpu[0]):
     Y_ = tf.placeholder(tf.int32, [None, None], name='Y_')  # [ BATCHSIZE, SEQLEN ]
 
     W_embed = tf.Variable(tf.random_uniform([N_ITEMS, EMBEDDING_SIZE], -1.0, 1.0), name='embeddings')
-    X_embed = tf.nn.embedding_lookup(W_embed, X)
+    X_embed = tf.nn.embedding_lookup(W_embed, X) # [BATCHSIZE, SEQLEN, EMBEDDING_SIZE]
 
 with tf.device(gpu[0]):
     seq_len = tf.placeholder(tf.int32, [None], name='seqlen')
     batchsize = tf.placeholder(tf.int32, name='batchsize')
+
+    X_sum = tf.reduce_sum(X_embed, 1)
+    X_avg = tf.realdiv(X_sum, tf.cast(seq_len, tf.float32))
 
     lr = tf.placeholder(tf.float32, name='lr')              # learning rate
     pkeep = tf.placeholder(tf.float32, name='pkeep')        # dropout parameter
@@ -231,10 +234,10 @@ while epoch <= MAX_EPOCHS:
             feed_dict = {X: xinput, Y_: targetvalues, X_lt: session_reps, 
                     seq_len_lt: sr_sl, lr: learning_rate, pkeep: dropout_pkeep, 
                     batchsize: len(xinput), seq_len: sl}
-    
-            _, bl, final_H = sess.run([train_step, batchloss, H], feed_dict=feed_dict)
-    
-            datahandler.store_user_session_representations(final_H, user_list)
+            
+            _, bl, sess_rep = sess.run([train_step, batchloss, X_avg], feed_dict=feed_dict)
+            
+            datahandler.store_user_session_representations(sess_rep, user_list)
         
             # save training data for Tensorboard
             #summary_writer.add_summary(smm, _batch_number)
@@ -270,8 +273,8 @@ while epoch <= MAX_EPOCHS:
         feed_dict = {X: xinput, pkeep: 1.0, batchsize: len(xinput), seq_len: sl,
                 X_lt: session_reps, seq_len_lt: sr_sl}
 
-        batch_predictions, final_H = sess.run([Y_prediction, H], feed_dict=feed_dict)
-        datahandler.store_user_session_representations(final_H, user_list)
+        batch_predictions, sess_rep = sess.run([Y_prediction, X_avg], feed_dict=feed_dict)
+        datahandler.store_user_session_representations(sess_rep, user_list)
         
         # Evaluate predictions
         tester.evaluate_batch(batch_predictions, targetvalues, sl)
