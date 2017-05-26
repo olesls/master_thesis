@@ -43,7 +43,7 @@ if dataset == reddit:
     learning_rate = 0.001
     dropout_pkeep = 1.0
 elif dataset == lastfm:
-    ST_INTERNALSIZE = 100   # size of internal vectors/states in the rnn
+    ST_INTERNALSIZE = 99   # size of internal vectors/states in the rnn
     LT_INTERNALSIZE = ST_INTERNALSIZE
     learning_rate = 0.001
     dropout_pkeep = 0.8
@@ -103,7 +103,7 @@ with tf.device(gpu[0]):
     batchsize = tf.placeholder(tf.int32, name='batchsize')
 
     X_sum = tf.reduce_sum(X_embed, 1)
-    X_avg = tf.realdiv(X_sum, tf.cast(seq_len, tf.float32))
+    X_avg = tf.transpose(tf.realdiv(tf.transpose(X_sum), tf.cast(seq_len, tf.float32)))
 
     lr = tf.placeholder(tf.float32, name='lr')              # learning rate
     pkeep = tf.placeholder(tf.float32, name='pkeep')        # dropout parameter
