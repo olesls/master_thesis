@@ -43,7 +43,7 @@ if dataset == reddit:
     learning_rate = 0.001
     dropout_pkeep = 1.0
 elif dataset == lastfm:
-    ST_INTERNALSIZE = 99   # size of internal vectors/states in the rnn
+    ST_INTERNALSIZE = 100
     LT_INTERNALSIZE = ST_INTERNALSIZE
     learning_rate = 0.001
     dropout_pkeep = 0.8
