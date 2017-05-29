@@ -229,8 +229,6 @@ while epoch <= MAX_EPOCHS:
     ##  TESTING
     ##
     print("Starting testing")
-    recall, mrr = 0.0, 0.0
-    evaluation_count = 0
     tester = Tester()
     datahandler.reset_user_batch_data()
     _batch_number = 0
@@ -265,7 +263,7 @@ while epoch <= MAX_EPOCHS:
     print(test_stats)
     
     if save_best:
-        if current_recall5 > best_recall5 or current_recall20 > best_recall20:
+        if current_recall5 > best_recall5:
             # Save the model
             print("Saving model.")
             save_file = checkpoint_file + checkpoint_file_ending
@@ -273,7 +271,6 @@ while epoch <= MAX_EPOCHS:
             print("|- Model saved in file:", save_path)
     
             best_recall5 = current_recall5
-            best_recall20 = current_recall20
             datahandler.store_current_epoch(epoch, epoch_file)
 
     datahandler.log_test_stats(epoch, epoch_loss, test_stats)
