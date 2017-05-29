@@ -295,7 +295,7 @@ while epoch <= MAX_EPOCHS:
     print(test_stats)
     
     if save_best:
-        if current_recall5 > best_recall5
+        if current_recall5 > best_recall5:
             # Save the model
             print("Saving model.")
             save_file = checkpoint_file + checkpoint_file_ending
