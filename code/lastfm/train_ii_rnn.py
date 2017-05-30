@@ -224,6 +224,7 @@ while epoch <= MAX_EPOCHS:
     
     if do_training:
         datahandler.reset_user_batch_data()
+        datahandler.reset_user_session_representations()
         _batch_number = 0
         xinput, targetvalues, sl, session_reps, sr_sl, user_list, _ = datahandler.get_next_train_batch()
 

@@ -84,6 +84,8 @@ class IIRNNDataHandler:
             self.users_with_remaining_sessions.append(k)
 
         istate = np.zeros([self.LT_INTERNALSIZE])
+
+    def reset_user_session_representations(self):
         # session representations for each user is stored here
         self.user_session_representations = [None]*self.num_users
         # the number of (real) session representations a user has
