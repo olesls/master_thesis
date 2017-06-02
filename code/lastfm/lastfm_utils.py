@@ -11,25 +11,27 @@ class PlainRNNDataHandler:
     def __init__(self, dataset_path, batch_size, test_log):
         self.dataset_path = dataset_path
         self.batch_size = batch_size
-        print("Loading dataset")
-        load_time = time.time()
-        dataset = pickle.load(open(self.dataset_path, 'rb'))
-        print("|- dataset loaded in", str(time.time()-load_time), "s")
+        if len(dataset_path) > 0:
+            print("Loading dataset")
+            load_time = time.time()
+            dataset = pickle.load(open(self.dataset_path, 'rb'))
+            print("|- dataset loaded in", str(time.time()-load_time), "s")
         
-        self.trainset = dataset['trainset']
-        self.testset = dataset['testset']
-        self.train_session_lengths = dataset['train_session_lengths']
-        self.test_session_lengths = dataset['test_session_lengths']
+            self.trainset = dataset['trainset']
+            self.testset = dataset['testset']
+            self.train_session_lengths = dataset['train_session_lengths']
+            self.test_session_lengths = dataset['test_session_lengths']
 
-        self.num_users = len(self.trainset)
-        if len(self.trainset) != len(self.testset):
-            raise Exception("""Testset and trainset have different 
-                    amount of users.""")
+            self.num_users = len(self.trainset)
+            if len(self.trainset) != len(self.testset):
+                raise Exception("""Testset and trainset have different 
+                        amount of users.""")
+
+            self.reset_user_batch_data()
 
         self.test_log = test_log
         logging.basicConfig(filename=test_log,level=logging.DEBUG)
 
-        self.reset_user_batch_data()
 
     # call before training and testing
     def reset_user_batch_data(self):

@@ -10,8 +10,8 @@ runtime = time.time()
 reddit = "subreddit"
 lastfm = "lastfm"
 
-dataset = reddit
-#dataset = lastfm
+#dataset = reddit
+dataset = lastfm
 
 home = os.path.expanduser('~')
 if home == '/root': # for the telenor server
@@ -26,6 +26,7 @@ DATASET_W_CONVERTED_TIMESTAMPS = DATASET_DIR + '/1_converted_timestamps.pickle'
 DATASET_USER_ARTIST_MAPPED = DATASET_DIR + '/2_user_artist_mapped.pickle'
 DATASET_USER_SESSIONS = DATASET_DIR + '/3_user_sessions.pickle'
 DATASET_TRAIN_TEST_SPLIT = DATASET_DIR + '/4_train_test_split.pickle'
+DATASET_BPR_MF = DATASET_DIR + '/bpr-mf_train_test_split.pickle'
 
 if dataset == reddit:
     SESSION_TIMEDELTA = 60*60 # 1 hour
@@ -289,6 +290,30 @@ def split_to_training_and_testing():
     
     save_pickle(pickle_dict , DATASET_TRAIN_TEST_SPLIT)
 
+def create_bpr_mf_sets():
+    p = load_pickle(DATASET_TRAIN_TEST_SPLIT)
+    train = p['trainset']
+    train_sl = p['train_session_lengths']
+    test = p['testset']
+    test_sl = p['test_session_lengths']
+
+    for user in train.keys():
+        extension = test[user][:-1]
+        train[user].extend(extension)
+        extension = test_sl[user][:-1]
+        train_sl[user].extend(extension)
+    
+    for user in test.keys():
+        test[user] = [test[user][-1]]
+        test_sl[user] = [test_sl[user][-1]]
+
+    pickle_dict = {}
+    pickle_dict['trainset'] = train
+    pickle_dict['testset'] = test
+    pickle_dict['train_session_lengths'] = train_sl
+    pickle_dict['test_session_lengths'] = test_sl
+    
+    save_pickle(pickle_dict , DATASET_BPR_MF)
 
 if not file_exists(DATASET_W_CONVERTED_TIMESTAMPS):
     print("Converting timestamps.")
@@ -308,6 +333,10 @@ if not file_exists(DATASET_USER_SESSIONS):
 if not file_exists(DATASET_TRAIN_TEST_SPLIT):
     print("Splitting dataset into training and testing sets.")
     split_to_training_and_testing()
+
+if not file_exists(DATASET_BPR_MF):
+    print("Creating dataset for BPR-MF.")
+    create_bpr_mf_sets()
 
 
 print("Runtime:", str(time.time()-runtime))

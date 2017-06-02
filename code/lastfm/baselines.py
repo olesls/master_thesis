@@ -11,9 +11,9 @@ reddit = "subreddit"
 lastfm = "lastfm"
 instacart = "instacart"
 
-dataset = instacart
+dataset = reddit
 
-dataset_path = os.path.expanduser('~') + '/datasets/'+dataset+'/4_train_test_split.pickle'
+dataset_path = os.path.expanduser('~') + '/datasets/'+dataset+'/bpr-mf_train_test_split.pickle'
 
 date_now = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d')
 log_file = './testlog/'+str(date_now)+'-testing'
@@ -160,6 +160,6 @@ def knn():
 
 
 
-most_recent()
+#most_recent()
 most_popular()
-knn()
+#knn()

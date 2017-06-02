@@ -15,16 +15,16 @@ reddit = "subreddit"
 lastfm = "lastfm"
 instacart = "instacart"
 
-dataset = lastfm
+dataset = reddit
 
 save_best = True
-do_training = False
+do_training = True
 
 home = os.path.expanduser('~')
 if home == '/root':
     home = '/notebooks'
 
-dataset_path = home + '/datasets/'+dataset+'/4_train_test_split.pickle'
+dataset_path = home + '/datasets/'+dataset+'/bpr-mf_train_test_split.pickle'
 epoch_file = './epoch_file-simple-rnn-'+dataset+'.pickle'
 checkpoint_file = './checkpoints/plain-rnn-'+dataset+'-'
 checkpoint_file_ending = '.ckpt'
