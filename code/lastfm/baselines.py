@@ -11,7 +11,7 @@ reddit = "subreddit"
 lastfm = "lastfm"
 instacart = "instacart"
 
-dataset = reddit
+dataset = lastfm
 
 dataset_path = os.path.expanduser('~') + '/datasets/'+dataset+'/bpr-mf_train_test_split.pickle'
 

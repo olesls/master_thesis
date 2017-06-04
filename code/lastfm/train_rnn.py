@@ -15,7 +15,7 @@ reddit = "subreddit"
 lastfm = "lastfm"
 instacart = "instacart"
 
-dataset = reddit
+dataset = lastfm
 
 save_best = True
 do_training = True

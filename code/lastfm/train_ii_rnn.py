@@ -24,7 +24,7 @@ home = os.path.expanduser('~')
 if home == '/root':
     home = '/notebooks'
 
-dataset_path = home + '/datasets/'+dataset+'/4_train_test_split.pickle'
+dataset_path = home + '/datasets/'+dataset+'/bpr-mf_train_test_split.pickle'
 epoch_file = './epoch_file-iirnn-'+dataset+'.pickle'
 checkpoint_file = './checkpoints/ii-rnn-'+dataset+'-'
 checkpoint_file_ending = '.ckpt'
