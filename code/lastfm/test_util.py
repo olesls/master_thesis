@@ -4,11 +4,13 @@ class Tester:
     def __init__(self, k=[5, 10, 20]):
         self.k = k
         self.initialize()
+        self.session_length = 19
+        self.n_decimals = 4
 
     def initialize(self):
-        self.recall = [0]*len(self.k)
-        self.mrr = [0]*len(self.k)
-        self.evaluation_count = 0
+        self.i_count = [0]*19
+        self.recall = [[0]*len(self.k) for i in range(self.session_length)]
+        self.mrr = [[0]*len(self.k) for i in range(self.session_length)]
 
     def get_rank(self, target, predictions):
         for i in range(len(predictions)):
@@ -16,11 +18,6 @@ class Tester:
                 return i+1
 
         raise Exception("could not find target in sequence")
-
-    def update_higher_k(self, j, inv_rank):
-        for i in range(j+1, len(self.k)):
-            self.recall[i] += 1
-            self.mrr[i] += inv_rank
 
     def evaluate_sequence(self, predicted_sequence, target_sequence, seq_len):
         for i in range(seq_len):
@@ -30,14 +27,11 @@ class Tester:
             for j in range(len(self.k)):
                 k = self.k[j]
                 if target_item in k_predictions[:k]:
-                    self.recall[j] += 1
+                    self.recall[i][j] += 1
                     inv_rank = 1.0/self.get_rank(target_item, k_predictions[:k])
-                    self.mrr[j] += inv_rank
+                    self.mrr[i][j] += inv_rank
 
-                    self.update_higher_k(j, inv_rank)
-                    break
-
-            self.evaluation_count += 1
+            self.i_count[i] += 1
 
 
     def evaluate_batch(self, predictions, targets, sequence_lengths):
@@ -47,21 +41,32 @@ class Tester:
             self.evaluate_sequence(predicted_sequence, target_sequence, sequence_lengths[batch_index])
 
     def get_stats(self):
-        message = ""
-        for i in range(len(self.k)):
-            k = self.k[i]
-            
-            recall_k = self.recall[i]/self.evaluation_count
-            mrr_k = self.mrr[i]/self.evaluation_count
-
-            message += "\tRecall@"+str(k)+" =\t"+str(recall_k)+"\n"
-            message += "\tMRR@"+str(k)+" =\t"+str(mrr_k)+"\n"
+        score_message = "\n----------\n"
         
-        recall5 = self.recall[0]/self.evaluation_count
-        recall20 = self.recall[2]/self.evaluation_count
+        current_recall = [0]*len(self.k)
+        current_mrr = [0]*len(self.k)
+        current_count = 0
+        recall_k = [0]*len(self.k)
+        for i in range(self.session_length):
+            score_message += "\ni<="+str(i)+"\n"
+            current_count += self.i_count[i]
+            for j in range(len(self.k)):
+                current_recall[j] += self.recall[i][j]
+                current_mrr[j] += self.mrr[i][j]
+                k = self.k[i]
+
+                r = current_recall/current_count
+                m = current_mmr/current_count
+
+                message += "\tRecall@"+str(k)+" =\t"+str(round(r, self.n_decimals))+"\n"
+                message += "\tMRR@"+str(k)+" =\t"+str(round(m, self.n_decimals))+"\n"
+
+                recall_k[j] = r
+
+        recall5 = recall_k[0]
+        recall20 = recall[2]
 
         return message, recall5, recall20
-
 
     def get_stats_and_reset(self):
         message = self.get_stats()

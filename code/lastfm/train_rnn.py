@@ -260,8 +260,9 @@ while epoch <= MAX_EPOCHS:
 
     # Print final test stats for epoch
     test_stats, current_recall5, current_recall20 = tester.get_stats_and_reset()
-    print(test_stats)
-    
+    print("Recall@5 = " + str(current_recall5))
+    print("Recall@20 = " + str(current_recall20))
+
     if save_best:
         if current_recall5 > best_recall5:
             # Save the model
@@ -271,6 +272,7 @@ while epoch <= MAX_EPOCHS:
             print("|- Model saved in file:", save_path)
     
             best_recall5 = current_recall5
+
             datahandler.store_current_epoch(epoch, epoch_file)
 
     datahandler.log_test_stats(epoch, epoch_loss, test_stats)

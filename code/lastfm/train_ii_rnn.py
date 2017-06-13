@@ -15,7 +15,7 @@ reddit = "subreddit"
 lastfm = "lastfm"
 instacart = "instacart"
 
-dataset = lastfm
+dataset = instacart
 
 do_training = True
 save_best = True
@@ -24,7 +24,7 @@ home = os.path.expanduser('~')
 if home == '/root':
     home = '/notebooks'
 
-dataset_path = home + '/datasets/'+dataset+'/bpr-mf_train_test_split.pickle'
+dataset_path = home + '/datasets/'+dataset+'/4_train_test_split.pickle'
 epoch_file = './epoch_file-iirnn-'+dataset+'.pickle'
 checkpoint_file = './checkpoints/ii-rnn-'+dataset+'-'
 checkpoint_file_ending = '.ckpt'
@@ -42,23 +42,25 @@ if dataset == reddit:
     LT_INTERNALSIZE = ST_INTERNALSIZE
     learning_rate = 0.001
     dropout_pkeep = 1.0
+    MAX_SESSION_REPRESENTATIONS = 15
 elif dataset == lastfm:
     ST_INTERNALSIZE = 100
     LT_INTERNALSIZE = ST_INTERNALSIZE
     learning_rate = 0.001
     dropout_pkeep = 0.8
+    MAX_SESSION_REPRESENTATIONS = 15
 elif dataset == instacart:
     ST_INTERNALSIZE = 80
     LT_INTERNALSIZE = ST_INTERNALSIZE
     learning_rate = 0.001
     dropout_pkeep = 0.8
+    MAX_SESSION_REPRESENTATIONS = 15
 
 N_LAYERS     = 1        # number of layers in the rnn
 SEQLEN       = 20-1     # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
 EMBEDDING_SIZE = ST_INTERNALSIZE
 TOP_K = 20
-MAX_EPOCHS = 100
-MAX_SESSION_REPRESENTATIONS = 5
+MAX_EPOCHS = 300
 
 # Load training data
 datahandler = IIRNNDataHandler(dataset_path, BATCHSIZE, log_file, 
@@ -67,6 +69,7 @@ N_ITEMS = datahandler.get_num_items()
 N_SESSIONS = datahandler.get_num_training_sessions()
 
 message = "------------------------------------------------------------------------\n"
+message += "lastfm with last hidden state"
 message += "DATASET: "+dataset+" MODEL: II-RNN"
 message += "\nCONFIG: N_ITEMS="+str(N_ITEMS)+" BATCHSIZE="+str(BATCHSIZE)
 message += "\nST_INTERNALSIZE="+str(ST_INTERNALSIZE)+" LT_INTERNALSIZE="+str(LT_INTERNALSIZE)
@@ -78,9 +81,7 @@ datahandler.log_config(message)
 print(message)
 
 if not do_training:
-    print()
-    print("OBS!!!! Training is turned off!")
-    print()
+    print("\nOBS!!!! Training is turned off!\n")
 
 
 ##
@@ -236,7 +237,8 @@ while epoch <= MAX_EPOCHS:
                     seq_len_lt: sr_sl, lr: learning_rate, pkeep: dropout_pkeep, 
                     batchsize: len(xinput), seq_len: sl}
             
-            _, bl, sess_rep = sess.run([train_step, batchloss, X_avg], feed_dict=feed_dict)
+            #_, bl, sess_rep = sess.run([train_step, batchloss, X_avg], feed_dict=feed_dict)
+            _, bl, sess_rep = sess.run([train_step, batchloss, H], feed_dict=feed_dict)
             
             datahandler.store_user_session_representations(sess_rep, user_list)
         
@@ -272,7 +274,8 @@ while epoch <= MAX_EPOCHS:
         feed_dict = {X: xinput, pkeep: 1.0, batchsize: len(xinput), seq_len: sl,
                 X_lt: session_reps, seq_len_lt: sr_sl}
 
-        batch_predictions, sess_rep = sess.run([Y_prediction, X_avg], feed_dict=feed_dict)
+        #batch_predictions, sess_rep = sess.run([Y_prediction, X_avg], feed_dict=feed_dict)
+        batch_predictions, sess_rep = sess.run([Y_prediction, H], feed_dict=feed_dict)
         datahandler.store_user_session_representations(sess_rep, user_list)
         
         # Evaluate predictions
@@ -293,7 +296,8 @@ while epoch <= MAX_EPOCHS:
 
     # Print final test stats for epoch
     test_stats, current_recall5, current_recall20 = tester.get_stats_and_reset()
-    print(test_stats)
+    print("Recall@5 = "+str(current_recall5))
+    print("Recall@20 = "+str(current_recall20))
     
     if save_best:
         if current_recall5 > best_recall5:
@@ -303,9 +307,10 @@ while epoch <= MAX_EPOCHS:
             save_path = saver.save(sess, save_file)
             print("|- Model saved in file:", save_path)
 
-            datahandler.store_current_epoch(epoch, epoch_file)
             best_recall5 = current_recall5
 
+            datahandler.store_current_epoch(epoch, epoch_file)
+ 
     datahandler.log_test_stats(epoch, epoch_loss, test_stats)
 
     epoch += 1
