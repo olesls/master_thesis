@@ -3,9 +3,9 @@ class Tester:
 
     def __init__(self, k=[5, 10, 20]):
         self.k = k
-        self.initialize()
         self.session_length = 19
         self.n_decimals = 4
+        self.initialize()
 
     def initialize(self):
         self.i_count = [0]*19
@@ -39,6 +39,12 @@ class Tester:
             predicted_sequence = predictions[batch_index]
             target_sequence = targets[batch_index]
             self.evaluate_sequence(predicted_sequence, target_sequence, sequence_lengths[batch_index])
+    
+    def format_score_string(self, score_type, score):
+        tabs = '\t'
+        if len(score_type) < 8:
+            tabs += '\t'
+        return '\t'+score_type+tabs+score+'\n'
 
     def get_stats(self):
         score_message = "\n----------\n"
@@ -53,20 +59,20 @@ class Tester:
             for j in range(len(self.k)):
                 current_recall[j] += self.recall[i][j]
                 current_mrr[j] += self.mrr[i][j]
-                k = self.k[i]
+                k = self.k[j]
 
-                r = current_recall/current_count
-                m = current_mmr/current_count
-
-                message += "\tRecall@"+str(k)+" =\t"+str(round(r, self.n_decimals))+"\n"
-                message += "\tMRR@"+str(k)+" =\t"+str(round(m, self.n_decimals))+"\n"
+                r = current_recall[j]/current_count
+                m = current_mrr[j]/current_count
+                
+                score_message += self.format_score_string("Recall@"+str(k), str(round(r, self.n_decimals)))
+                score_message += self.format_score_string("MRR@"+str(k), str(round(m, self.n_decimals)))
 
                 recall_k[j] = r
 
         recall5 = recall_k[0]
-        recall20 = recall[2]
+        recall20 = recall_k[2]
 
-        return message, recall5, recall20
+        return score_message, recall5, recall20
 
     def get_stats_and_reset(self):
         message = self.get_stats()

@@ -248,13 +248,10 @@ while epoch <= MAX_EPOCHS:
         # Print some stats during testing
         batch_runtime = time.time() - batch_start_time
         if _batch_number%100==0:
-            print("Batch number:", str(_batch_number), "/", str(num_test_batches), "| Batch time:", "%.2f" % batch_runtime, " seconds")
+            print("Batch number:", str(_batch_number), "/", str(num_test_batches), "| Batch time:", "%.2f" % batch_runtime, " seconds", end='')
             eta = (batch_runtime*(num_test_batches-_batch_number))/60
             eta = "%.2f" % eta
             print("ETA:", eta, "minutes.")
-            current_results = tester.get_stats()
-            print("Current evaluation:")
-            print(current_results)
         
         xinput, targetvalues, sl = datahandler.get_next_test_batch()
 
@@ -274,7 +271,6 @@ while epoch <= MAX_EPOCHS:
             best_recall5 = current_recall5
 
             datahandler.store_current_epoch(epoch, epoch_file)
-
-    datahandler.log_test_stats(epoch, epoch_loss, test_stats)
+            datahandler.log_test_stats(epoch, epoch_loss, test_stats)
 
     epoch += 1
