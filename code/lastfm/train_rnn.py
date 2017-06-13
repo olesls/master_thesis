@@ -251,7 +251,7 @@ while epoch <= MAX_EPOCHS:
             print("Batch number:", str(_batch_number), "/", str(num_test_batches), "| Batch time:", "%.2f" % batch_runtime, " seconds", end='')
             eta = (batch_runtime*(num_test_batches-_batch_number))/60
             eta = "%.2f" % eta
-            print("ETA:", eta, "minutes.")
+            print(" ETA:", eta, "minutes.")
         
         xinput, targetvalues, sl = datahandler.get_next_test_batch()
 

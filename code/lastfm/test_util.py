@@ -47,8 +47,7 @@ class Tester:
         return '\t'+score_type+tabs+score+'\n'
 
     def get_stats(self):
-        score_message = "\n----------\n"
-        
+        score_message = ""
         current_recall = [0]*len(self.k)
         current_mrr = [0]*len(self.k)
         current_count = 0

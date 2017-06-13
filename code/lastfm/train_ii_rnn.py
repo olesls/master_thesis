@@ -15,7 +15,7 @@ reddit = "subreddit"
 lastfm = "lastfm"
 instacart = "instacart"
 
-dataset = instacart
+dataset = reddit
 
 do_training = True
 save_best = True
@@ -69,7 +69,7 @@ N_ITEMS = datahandler.get_num_items()
 N_SESSIONS = datahandler.get_num_training_sessions()
 
 message = "------------------------------------------------------------------------\n"
-message += "lastfm with last hidden state"
+message += "lastfm with last hidden state\n"
 message += "DATASET: "+dataset+" MODEL: II-RNN"
 message += "\nCONFIG: N_ITEMS="+str(N_ITEMS)+" BATCHSIZE="+str(BATCHSIZE)
 message += "\nST_INTERNALSIZE="+str(ST_INTERNALSIZE)+" LT_INTERNALSIZE="+str(LT_INTERNALSIZE)
@@ -287,7 +287,7 @@ while epoch <= MAX_EPOCHS:
             print("Batch number:", str(_batch_number), "/", str(num_test_batches), "| Batch time:", "%.2f" % batch_runtime, " seconds", end='')
             eta = (batch_runtime*(num_test_batches-_batch_number))/60
             eta = "%.2f" % eta
-            print("ETA:", eta, "minutes.")
+            print(" ETA:", eta, "minutes.")
 
         xinput, targetvalues, sl, session_reps, sr_sl, user_list, _ = datahandler.get_next_test_batch()
 
