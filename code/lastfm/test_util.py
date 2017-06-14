@@ -42,8 +42,8 @@ class Tester:
     
     def format_score_string(self, score_type, score):
         tabs = '\t'
-        if len(score_type) < 8:
-            tabs += '\t'
+        #if len(score_type) < 8:
+        #    tabs += '\t'
         return '\t'+score_type+tabs+score+'\n'
 
     def get_stats(self):
