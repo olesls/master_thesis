@@ -47,13 +47,13 @@ class Tester:
         return '\t'+score_type+tabs+score+'\n'
 
     def get_stats(self):
-        score_message = ""
+        score_message = "Recall@5\tMRR@5\tRecall@10\tMRR@10\tRecall@20\tMRR@20\n"
         current_recall = [0]*len(self.k)
         current_mrr = [0]*len(self.k)
         current_count = 0
         recall_k = [0]*len(self.k)
         for i in range(self.session_length):
-            score_message += "\ni<="+str(i)+"\n"
+            score_message += "\ni<="+str(i)+"\t"
             current_count += self.i_count[i]
             for j in range(len(self.k)):
                 current_recall[j] += self.recall[i][j]
@@ -63,8 +63,8 @@ class Tester:
                 r = current_recall[j]/current_count
                 m = current_mrr[j]/current_count
                 
-                score_message += self.format_score_string("Recall@"+str(k), str(round(r, self.n_decimals)))
-                score_message += self.format_score_string("MRR@"+str(k), str(round(m, self.n_decimals)))
+                score_message += str(round(r, self.n_decimals))+'\t'
+                score_message += str(round(m, self.n_decimals))+'\t'
 
                 recall_k[j] = r
 

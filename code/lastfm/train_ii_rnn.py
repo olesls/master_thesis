@@ -43,24 +43,26 @@ if dataset == reddit:
     learning_rate = 0.001
     dropout_pkeep = 1.0
     MAX_SESSION_REPRESENTATIONS = 15
+    MAX_EPOCHS = 31
 elif dataset == lastfm:
     ST_INTERNALSIZE = 100
     LT_INTERNALSIZE = ST_INTERNALSIZE
     learning_rate = 0.001
     dropout_pkeep = 0.8
     MAX_SESSION_REPRESENTATIONS = 15
+    MAX_EPOCHS = 50
 elif dataset == instacart:
     ST_INTERNALSIZE = 80
     LT_INTERNALSIZE = ST_INTERNALSIZE
     learning_rate = 0.001
     dropout_pkeep = 0.8
     MAX_SESSION_REPRESENTATIONS = 15
+    MAX_EPOCHS = 200
 
 N_LAYERS     = 1        # number of layers in the rnn
 SEQLEN       = 20-1     # maximum number of actions in a session (or more precisely, how far into the future an action affects future actions. This is important for training, but when running, we can have as long sequences as we want! Just need to keep the hidden state and compute the next action)
 EMBEDDING_SIZE = ST_INTERNALSIZE
 TOP_K = 20
-MAX_EPOCHS = 300
 
 # Load training data
 datahandler = IIRNNDataHandler(dataset_path, BATCHSIZE, log_file, 
