@@ -3,21 +3,19 @@ import pickle
 import os
 import time
 
-# There should be a total of ~19 150 868 songlistenings
-
 runtime = time.time()
-
 reddit = "subreddit"
 lastfm = "lastfm"
 
+# Uncomment the dataset you want to use here
 #dataset = reddit
 dataset = lastfm
 
 home = os.path.expanduser('~')
-if home == '/root': # for the telenor server
-    home = '/notebooks'
 
+# Here you can change the path to the dataset
 DATASET_DIR = home + '/datasets/'+dataset
+
 if dataset == lastfm:
     DATASET_FILE = DATASET_DIR + '/userid-timestamp-artid-artname-traid-traname.tsv'
 elif dataset == reddit:
@@ -97,7 +95,6 @@ def map_user_and_artist_id_to_labels():
         dataset_list[i][0] = user_map[user_id]
         dataset_list[i][2] = artist_map[artist_id]
     
-    # All artist_id (hash strings) have been repalced with numeric labels.
     # Save to pickle file
     save_pickle(dataset_list, DATASET_USER_ARTIST_MAPPED)
 

@@ -17,6 +17,7 @@ dataset_path = os.path.expanduser('~') + '/datasets/'+dataset+'/bpr-mf_train_tes
 
 date_now = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d')
 log_file = './testlog/'+str(date_now)+'-testing'
+# Does not really matter. Only needs to be here because of my earler shortsightedness
 BATCHSIZE = 2
 datahandler = PlainRNNDataHandler(dataset_path, BATCHSIZE, log_file)
 num_train_batches = datahandler.get_num_training_batches()

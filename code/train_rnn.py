@@ -1,5 +1,3 @@
-# Code to train a plain RNN for prediction on the lastfm dataset
-
 import tensorflow as tf
 from tensorflow.contrib import layers
 from tensorflow.contrib import rnn  # will probably be moved to code in TF 1.1. Keep it imported as rnn to make the rest of the code independent of this.
@@ -21,9 +19,6 @@ save_best = True
 do_training = True
 
 home = os.path.expanduser('~')
-if home == '/root':
-    home = '/notebooks'
-
 dataset_path = home + '/datasets/'+dataset+'/bpr-mf_train_test_split.pickle'
 epoch_file = './epoch_file-simple-rnn-'+dataset+'.pickle'
 checkpoint_file = './checkpoints/plain-rnn-'+dataset+'-'

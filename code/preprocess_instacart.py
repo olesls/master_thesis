@@ -3,14 +3,13 @@ import os
 import time
 
 runtime = time.time()
-
 home = os.path.expanduser('~')
-if home == '/root':
-    home = '/notebooks'
 
 DATASET_DIR = home + '/datasets/instacart'
+
 ORDERS_FILE = DATASET_DIR + '/orders.csv'
 ORDER_PRODUCTS_PRIOR = DATASET_DIR + '/order_products__prior.csv'
+
 DATASET_USER_ORDER_PRODUCTS_COMBINED = DATASET_DIR + '/2_user_sessions_combined.pickle'
 DATASET_USER_SESSIONS = DATASET_DIR + '/3_user_sessions.pickle'
 DATASET_TRAIN_TEST_SPLIT = DATASET_DIR + '/4_train_test_split.pickle'
