@@ -45,32 +45,6 @@ class IIRNNDataHandler:
         # batch control
         self.reset_user_batch_data()
 
-    def create_time_vector(self, time_diff):
-        time_vector = [0] * (len(self.timebuckets)+1)
-        for i in range(len(self.timebuckets)):
-            if time_diff < self.timebuckets[i]:
-                time_vector[i] = 1
-                return time_vector
-        time_vector[-1] = 1
-        return time_vector
-    
-
-    def initialize_all_time_vectors(self, time_vectors, dataset, session_lengths):
-        for user, sessions in dataset.items():
-            time_vectors[user] = []
-            time_vectors[user].append(self.create_time_vector(0))  #First does not matter, since no past sessions
-            for i in range(len(sessions)-1):
-                lastsession_last_index = session_lengths[user][i]-1
-                last = sessions[i]      #last/current session
-                current = sessions[i+1]
-                last = last[lastsession_last_index]         #last/current event
-                current = current[0]
-                last = last[0]          #last/current timestamp
-                current = current[0]
-                time_diff = current - last
-                #print("last:", last, "    current:", current, "    time_diff:", str(time_diff))
-                time_vectors[user].append(self.create_time_vector(time_diff))
-
     # call before training and testing
     def reset_user_batch_data(self):
         # the index of the next session(event) to retrieve for a user

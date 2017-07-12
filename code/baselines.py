@@ -11,20 +11,31 @@ reddit = "subreddit"
 lastfm = "lastfm"
 instacart = "instacart"
 
+#
+# Choose dataset here
+#
 dataset = lastfm
 
-dataset_path = os.path.expanduser('~') + '/datasets/'+dataset+'/bpr-mf_train_test_split.pickle'
+#
+# Specify the correct path to the dataset
+#
+dataset_path = os.path.expanduser('~') + '/datasets/'+dataset+'/4_train_test_split.pickle'
 
 date_now = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d')
 log_file = './testlog/'+str(date_now)+'-testing'
-# Does not really matter. Only needs to be here because of my earler shortsightedness
+# Does not really matter. Only needs to be here because of my earler short sightedness. Used by test_util
 BATCHSIZE = 2
 datahandler = PlainRNNDataHandler(dataset_path, BATCHSIZE, log_file)
 num_train_batches = datahandler.get_num_training_batches()
 num_test_batches = datahandler.get_num_test_batches()
 num_items = datahandler.get_num_items()
+
+#
+# MAX_SESSION_LENGTH -1. Change this if you change the length in preprocessing
+#
 num_predictions = 19
 
+# Log dataset and baseline model
 def log_config(baseline):
     message =    "------------------------------------------------------------------------"
     message += "\nDATASET: "+dataset
@@ -32,6 +43,7 @@ def log_config(baseline):
     datahandler.log_config(message)
     print(message)
 
+# Create sequence of predictions for one session, with the 'most recent' baseline
 def most_recent_sequence_predicions(sequence, sequence_length):
     full_prediction_sequence = random.sample(range(1, num_items), num_predictions)
     predictions = []
@@ -44,6 +56,7 @@ def most_recent_sequence_predicions(sequence, sequence_length):
         predictions.append(full_prediction_sequence[:num_predictions])
     return predictions
 
+# The 'most recent' baseline. A stack where the most recent item in the session is pushed on top.
 def most_recent():
     log_config("most_recent")
     datahandler.reset_user_batch_data()
@@ -62,7 +75,7 @@ def most_recent():
     print(test_stats)
     datahandler.log_test_stats(0, 0, test_stats)
 
-
+# The 'most popular' baseline. Count frequence of all items, and predict the top k (20) most frequent items
 def most_popular():
     log_config("most_popular")
     datahandler.reset_user_batch_data()
@@ -103,6 +116,7 @@ def most_popular():
     print(test_stats)
     datahandler.log_test_stats(0, 0, test_stats)
 
+# Item-kNN baseline. Count cooccurences of items. Predict items with highest cooccurences with the current item
 def knn():
     global num_train_batches
     log_config("kNN")
@@ -119,7 +133,8 @@ def knn():
         for b in range(len(x)):
             sequence_length = sl[b]+1
             items = x[b][:sequence_length]
-
+            
+            # For each item in the session, increment cooccurences with the remaining items in the session
             for i in range(len(items)-1):
                 for j in range(i+1, len(items)):
                     if items[j] not in cooccurrances[items[i]]:
@@ -161,6 +176,6 @@ def knn():
 
 
 
-#most_recent()
+most_recent()
 most_popular()
-#knn()
+knn()

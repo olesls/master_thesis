@@ -19,21 +19,22 @@ save_best = True
 do_training = True
 
 home = os.path.expanduser('~')
-dataset_path = home + '/datasets/'+dataset+'/bpr-mf_train_test_split.pickle'
+
+# Specify path to dataset here
+dataset_path = home + '/datasets/'+dataset+'/4_train_test_split.pickle'
+
 epoch_file = './epoch_file-simple-rnn-'+dataset+'.pickle'
 checkpoint_file = './checkpoints/plain-rnn-'+dataset+'-'
 checkpoint_file_ending = '.ckpt'
 date_now = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d')
 log_file = './testlog/'+str(date_now)+'-testing-plain-rnn.txt'
 
-
-# This might not work, might have to set the seed inside the training loop or something
-# TODO: Check if this works
 seed = 0
 tf.set_random_seed(seed)
 
-N_ITEMS      = -1       # number of items (size of 1-hot vector) #labels
-BATCHSIZE    = 100      #
+N_ITEMS      = -1
+BATCHSIZE    = 100
+
 if dataset == reddit:
     INTERNALSIZE = 50
     learning_rate = 0.001

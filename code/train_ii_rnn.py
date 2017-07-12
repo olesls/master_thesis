@@ -93,28 +93,35 @@ print("Creating model")
 cpu = ['/cpu:0']
 gpu = ['/gpu:0', '/gpu:1']
 
+# Use (CPU) RAM to hold embeddings. If >10 GB of VRAM available, you can put 
+# this there instead, which should reduce runtime
 with tf.device(cpu[0]):
     # Inputs
     X = tf.placeholder(tf.int32, [None, None], name='X')    # [ BATCHSIZE, SEQLEN ]
     Y_ = tf.placeholder(tf.int32, [None, None], name='Y_')  # [ BATCHSIZE, SEQLEN ]
-
+    
+    # Embeddings. W_embed = all embeddings. X_embed = retrieved embeddings 
+    # from W_embed, corresponding to the items in the current batch
     W_embed = tf.Variable(tf.random_uniform([N_ITEMS, EMBEDDING_SIZE], -1.0, 1.0), name='embeddings')
     X_embed = tf.nn.embedding_lookup(W_embed, X) # [BATCHSIZE, SEQLEN, EMBEDDING_SIZE]
 
 with tf.device(gpu[0]):
+    # Length of sesssions (not considering padding)
     seq_len = tf.placeholder(tf.int32, [None], name='seqlen')
     batchsize = tf.placeholder(tf.int32, name='batchsize')
-
+    
+    # Average of embeddings session representation
     X_sum = tf.reduce_sum(X_embed, 1)
     X_avg = tf.transpose(tf.realdiv(tf.transpose(X_sum), tf.cast(seq_len, tf.float32)))
 
     lr = tf.placeholder(tf.float32, name='lr')              # learning rate
     pkeep = tf.placeholder(tf.float32, name='pkeep')        # dropout parameter
 
+    # Input to inter-session RNN layer
     X_lt = tf.placeholder(tf.float32, [None, None, LT_INTERNALSIZE], name='X_lt') #[BATCHSIZE, LT_INTERNALSIZE]
     seq_len_lt = tf.placeholder(tf.int32, [None], name='lt_seqlen')
 
-    # Longterm RNN
+    # Inter-session RNN
     lt_cell = rnn.GRUCell(LT_INTERNALSIZE)
     lt_dropcell = rnn.DropoutWrapper(lt_cell, input_keep_prob=pkeep, output_keep_prob=pkeep)
     lt_rnn_outputs, lt_rnn_states = tf.nn.dynamic_rnn(lt_dropcell, X_lt,
@@ -123,7 +130,7 @@ with tf.device(gpu[0]):
     # Get the correct outputs (depends on session_lengths)
     last_lt_rnn_output = tf.gather_nd(lt_rnn_outputs, tf.stack([tf.range(batchsize), seq_len_lt-1], axis=1))
 
-    # Shortterm RNN
+    # intra-session RNN
     onecell = rnn.GRUCell(ST_INTERNALSIZE)
     dropcell = rnn.DropoutWrapper(onecell, input_keep_prob=pkeep)
     multicell = rnn.MultiRNNCell([dropcell]*N_LAYERS, state_is_tuple=False)
@@ -190,12 +197,6 @@ config = tf.ConfigProto(allow_soft_placement=True)
 config.gpu_options.allow_growth = True      # be nice and don't use more memory than necessary
 sess = tf.Session(config=config)
 saver = tf.train.Saver()
-
-# Tensorboard stuff
-# Saves Tensorboard information into a different folder at each run
-timestamp = str(math.trunc(time.time()))
-summary_writer = tf.summary.FileWriter("log/" + timestamp + "-training", sess.graph)
-#validation_writer = tf.summary.FileWriter("log/" + timestamp + "-validation")
 
 ##
 ##  TRAINING
