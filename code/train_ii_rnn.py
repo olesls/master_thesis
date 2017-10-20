@@ -6,7 +6,7 @@ import os
 import time
 import math
 import numpy as np
-from lastfm_utils_ii_rnn import IIRNNDataHandler
+from utils_ii_rnn import IIRNNDataHandler
 from test_util import Tester
 
 reddit = "subreddit"
@@ -230,7 +230,7 @@ while epoch <= MAX_EPOCHS:
     datahandler.reset_user_session_representations()
     if do_training:
         _batch_number = 0
-        xinput, targetvalues, sl, session_reps, sr_sl, user_list, _ = datahandler.get_next_train_batch()
+        xinput, targetvalues, sl, session_reps, sr_sl, user_list = datahandler.get_next_train_batch()
 
         while len(xinput) > int(BATCHSIZE/2):
             _batch_number += 1
@@ -256,7 +256,7 @@ while epoch <= MAX_EPOCHS:
                 eta = "%.2f" % eta
                 print(" | ETA:", eta, "minutes.")
             
-            xinput, targetvalues, sl, session_reps, sr_sl, user_list, _ = datahandler.get_next_train_batch()
+            xinput, targetvalues, sl, session_reps, sr_sl, user_list = datahandler.get_next_train_batch()
     
         print("Epoch", epoch, "finished")
         print("|- Epoch loss:", epoch_loss)
@@ -268,7 +268,7 @@ while epoch <= MAX_EPOCHS:
     tester = Tester()
     datahandler.reset_user_batch_data()
     _batch_number = 0
-    xinput, targetvalues, sl, session_reps, sr_sl, user_list, _ = datahandler.get_next_test_batch()
+    xinput, targetvalues, sl, session_reps, sr_sl, user_list = datahandler.get_next_test_batch()
     while len(xinput) > int(BATCHSIZE/2):
         batch_start_time = time.time()
         _batch_number += 1
@@ -294,7 +294,7 @@ while epoch <= MAX_EPOCHS:
             eta = "%.2f" % eta
             print(" ETA:", eta, "minutes.")
 
-        xinput, targetvalues, sl, session_reps, sr_sl, user_list, _ = datahandler.get_next_test_batch()
+        xinput, targetvalues, sl, session_reps, sr_sl, user_list = datahandler.get_next_test_batch()
 
     # Print final test stats for epoch
     test_stats, current_recall5, current_recall20 = tester.get_stats_and_reset()

@@ -32,12 +32,6 @@ class IIRNNDataHandler:
         self.MAX_SESSION_REPRESENTATIONS = max_sess_reps
         self.LT_INTERNALSIZE = lt_internalsize
 
-        self.timebuckets = timebuckets
-        self.trainset_time_vectors = [None]*len(self.trainset)
-        self.testset_time_vectors = [None]*len(self.testset)
-        self.initialize_all_time_vectors(self.trainset_time_vectors, self.trainset, self.train_session_lengths)
-        self.initialize_all_time_vectors(self.testset_time_vectors, self.testset, self.test_session_lengths)
-
         # LOG
         self.test_log = test_log
         logging.basicConfig(filename=test_log,level=logging.DEBUG)
@@ -107,12 +101,11 @@ class IIRNNDataHandler:
     def get_num_test_batches(self):
         return self.get_num_batches(self.testset)
 
-    def get_next_batch(self, dataset, dataset_session_lengths, time_vectors):
+    def get_next_batch(self, dataset, dataset_session_lengths):
         session_batch = []
         session_lengths = []
         sess_rep_batch = []
         sess_rep_lengths = []
-        sess_time_vectors = []
         
         # Decide which users to take sessions from. First count the number of remaining sessions
         remaining_sessions = [0]*len(self.users_with_remaining_sessions)
@@ -134,7 +127,6 @@ class IIRNNDataHandler:
             srl = max(self.num_user_session_representations[user], 1)
             sess_rep_lengths.append(srl)
             sess_rep_batch.append(self.user_session_representations[user])
-            sess_time_vectors.append(time_vectors[user][session_index])
 
             self.user_next_session_to_retrieve[user] += 1
             if self.user_next_session_to_retrieve[user] >= len(dataset[user]):
@@ -145,13 +137,13 @@ class IIRNNDataHandler:
         x = [session[:-1] for session in session_batch]
         y = [session[1:] for session in session_batch]
 
-        return x, y, session_lengths, sess_rep_batch, sess_rep_lengths, user_list, sess_time_vectors
+        return x, y, session_lengths, sess_rep_batch, sess_rep_lengths, user_list
 
     def get_next_train_batch(self):
-        return self.get_next_batch(self.trainset, self.train_session_lengths, self.trainset_time_vectors)
+        return self.get_next_batch(self.trainset, self.train_session_lengths)
 
     def get_next_test_batch(self):
-        return self.get_next_batch(self.testset, self.test_session_lengths, self.testset_time_vectors)
+        return self.get_next_batch(self.testset, self.test_session_lengths)
 
     def get_latest_epoch(self, epoch_file):
         if not os.path.isfile(epoch_file):

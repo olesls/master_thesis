@@ -71,7 +71,8 @@ Because of `with tf.device(cpu[0]):` at the start of the model setup, embeddings
 
 # Other files
 `baselines.py` contains implementation of baseline models. In the bottom of the file you can uncomment the models that you want to run.  
-The `lastfm_utils*.py` files are used by the `train*rnn.py` files to manage the datasets. The utils files takes control of retrieving mini-batches, logging results, storing session representations and some other stuff. They have 'lastfm' in their title because they were created early when we only the Last.fm dataset was used. The title will be changed as soon as I have access to a computer where I can confirm that everything still works after I have corrected the filenames.  
+The `utils*.py` files are used by the `train*rnn.py` files to manage the datasets. The utils files takes control of retrieving mini-batches, logging results, storing session representations and some other stuff.
+
 `test_util.py` is used by all models to score recommendations. It creates a first-n score. So remember that the first-n score for the highest value of n is equal to the overall score.  
 
 # Other questions
